@@ -1,0 +1,100 @@
+services:
+  # 关系型数据库：存储核心结构化数据
+  mysql:
+    image: mysql:8.0
+    container_name: mysql_8.0
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: KOL_platform
+    ports:
+      - "3306:3306"
+    volumes:
+      # 修改点：使用具名卷mysql_data
+      - mysql_data:/var/lib/mysql
+#      - ./data/mysql:/var/lib/mysql
+
+  # 缓存层：支持高并发报价结果缓存
+  redis:
+    image: redis:7.0
+    container_name: redis_7.0
+    restart: always
+    ports:
+      - "6379:6379"
+
+  # 非关系型数据库：存储各平台差异化的红人字段
+  mongodb:
+    image: mongo:6.0
+    container_name: mongodb_6.0
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      # 修改点：使用具名卷 mongo_data
+      - mongo_data:/data/db
+#      - ./data/mongo:/data/db
+
+  # 时序数据库：存储视频播放/互动监控数据
+  clickhouse:
+    image: clickhouse/clickhouse-server:23.8.16.16
+    container_name: clickhouse_23.8
+    restart: always
+    environment:
+      # 设置默认账户名为 admin
+      - CLICKHOUSE_USER=${CLICKHOUSE_USER}
+      # 设置您自定义的密码
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD}
+      # 允许管理权限（可选，方便后续在DBeaver中管理用户）
+      - CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    volumes:
+      # 修改点：使用具名卷 clickhouse_data
+      - clickhouse_data:/var/lib/clickhouse
+#      - ./data/clickhouse:/var/lib/clickhouse
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+
+  # 消息队列：处理异步数据采集与通知
+  zookeeper:
+    image: zookeeper:3.9.1
+    container_name: zookeeper_3.9.1
+    restart: always
+    environment:
+      - ZOO_ENABLE_AUTH=no
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0  # Confluent Kafka的稳定版本
+    container_name: kafka_7.5.0
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      - KAFKA_ZOOKEEPER_CONNECT=zookeeper_3.9.1:2181 # 匹配Zookeeper的容器名（若有修改需对应）
+#      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_BROKER_ID=1
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092  # 开发环境暴露本地端口
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1  # 单机环境副本数设为1
+
+  # 服务注册与配置中心：Hertz 微服务体系的核心
+  nacos:
+    image: nacos/nacos-server:v2.2.3
+    container_name: nacos_server
+    environment:
+      - MODE=standalone # 开发环境使用单机模式
+      - NACOS_AUTH_ENABLE=false # 显示关闭鉴权，解决 NACOS_AUTH_TOKEN 报错问题
+    ports:
+      - "8848:8848"
+      - "9848:9848" # Hertz/Go 客户端通信所需端口
+volumes:
+  mysql_data:
+  mongo_data:
+  clickhouse_data:
+  # redis_data:
