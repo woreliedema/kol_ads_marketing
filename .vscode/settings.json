@@ -1,7 +1,0 @@
-{
-    "python.defaultInterpreterPath": "\\wsl$\\Ubuntu-22.04\\home\\leon\\.virtualenvs\\kol_ads_marketing\\bin\\python",
-    "python.terminal.executeInFileDir": true,
-    "python.terminal.activateEnvironment": true,
-    "terminal.integrated.shell.windows": "wsl.exe",
-    "terminal.integrated.shellArgs.windows": ["-d", "Ubuntu-22.04"]
-}
