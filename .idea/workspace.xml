@@ -4,9 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="53aa0319-3c05-4b9b-b7fe-60a0b087c533" name="更改" comment="1. 基础环境配置&#10;2. 数据采集微服务基础代码写入&#10;3. feat: 忽略bilibili爬虫的config.yaml配置文件">
-      <change afterPath="$PROJECT_DIR$/.idea/dataSources.local.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+    <list default="true" id="53aa0319-3c05-4b9b-b7fe-60a0b087c533" name="更改" comment="docs: 删除部分文件">
+      <change afterPath="$PROJECT_DIR$/.idea/GitCommitMessageStorage.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -14,6 +15,11 @@
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
   <component name="Git.Settings">
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="master" />
+      </map>
+    </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
     <option name="WARN_ABOUT_LARGE_FILES_LIMIT_MB" value="1024" />
   </component>
@@ -29,19 +35,20 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;http.proxy&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
+    "git-widget-placeholder": "master",
+    "node.js.detected.package.eslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "preferences.pluginManager",
+    "vue.rearranger.settings.migration": "true"
   }
-}</component>
+}]]></component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
@@ -62,8 +69,26 @@
       <updated>1770171563653</updated>
       <workItem from="1770171564976" duration="4134000" />
       <workItem from="1770179133670" duration="288000" />
-      <workItem from="1770179431988" duration="821000" />
+      <workItem from="1770179431988" duration="1998000" />
+      <workItem from="1770181464650" duration="1402000" />
     </task>
+    <task id="LOCAL-00001" summary="1. 基础环境配置&#10;2. 数据采集微服务基础代码写入&#10;3. feat: 忽略bilibili爬虫的config.yaml配置文件">
+      <option name="closed" value="true" />
+      <created>1770180492127</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1770180492127</updated>
+    </task>
+    <task id="LOCAL-00002" summary="docs: 删除部分文件">
+      <option name="closed" value="true" />
+      <created>1770181939090</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1770181939090</updated>
+    </task>
+    <option name="localTasksCounter" value="3" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -74,7 +99,19 @@
       <map>
         <entry key="MAIN">
           <value>
-            <State />
+            <State>
+              <option name="FILTERS">
+                <map>
+                  <entry key="branch">
+                    <value>
+                      <list>
+                        <option value="origin/master" />
+                      </list>
+                    </value>
+                  </entry>
+                </map>
+              </option>
+            </State>
           </value>
         </entry>
       </map>
@@ -82,6 +119,8 @@
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="1. 基础环境配置&#10;2. 数据采集微服务基础代码写入&#10;3. feat: 忽略bilibili爬虫的config.yaml配置文件" />
-    <option name="LAST_COMMIT_MESSAGE" value="1. 基础环境配置&#10;2. 数据采集微服务基础代码写入&#10;3. feat: 忽略bilibili爬虫的config.yaml配置文件" />
+    <MESSAGE value="feat:" />
+    <MESSAGE value="docs: 删除部分文件" />
+    <option name="LAST_COMMIT_MESSAGE" value="docs: 删除部分文件" />
   </component>
 </project>
