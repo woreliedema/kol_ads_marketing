@@ -1,6 +1,7 @@
 crawlers/bilibili/config.yaml
 
 .idea/
+.vscode/
 __pycache__/
 *.pyc
 .env
