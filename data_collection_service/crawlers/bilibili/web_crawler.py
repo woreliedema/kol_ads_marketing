@@ -286,6 +286,29 @@ class BilibiliWebCrawler:
             response = await crawler.fetch_get_json(endpoint)
         return response
 
+    async def update_cookie(self, cookie: str):
+        """
+        更新指定服务的Cookie
+
+        Args:
+            cookie: 新的Cookie值
+        """
+        global config
+        service = "bilibili"
+        # 测试输出用
+        print('BilibiliWebCrawler before update', config["TokenManager"][service]["headers"]["cookie"])
+        print('BilibiliWebCrawler to update', cookie)
+
+        # 1. 更新内存中的配置（立即生效）
+        config["TokenManager"][service]["headers"]["cookie"] = cookie
+        # 测试输出用
+        print('BilibiliWebCrawler cookie updated', config["TokenManager"][service]["headers"]["cookie"])
+
+        # 2. 写入配置文件（持久化）
+        config_path = f"{path}/config.yaml"
+        with open(config_path, 'w', encoding='utf-8') as file:
+            yaml.dump(config, file, default_flow_style=False, allow_unicode=True, indent=2)
+
     "-------------------------------------------------------utils接口列表-------------------------------------------------------"
 
     # 通过bv号获得视频aid号
