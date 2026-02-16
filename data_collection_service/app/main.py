@@ -6,14 +6,9 @@ from data_collection_service.app.api.endpoints import bilibili_web,cookie_system
 # 假设您将刚刚写的 cookie 刷新接口放在了 system.py 里
 
 
-# 1. 初始化 FastAPI 实例
-app = FastAPI(
-    title="Data Collection Service",
-    description="数据采集微服务 (包含抖音、TikTok、B站等UCG平台数据采集与配置)",
-    version="1.0.0"
-)
 
-# 2. Nacos 连接配置
+
+# 1. Nacos 连接配置
 # (为了代码健壮性，这里建议使用 os.getenv 读取环境变量，赋予默认值以匹配本地开发)
 NACOS_IP = os.getenv("NACOS_IP", "127.0.0.1")
 NACOS_PORT = int(os.getenv("NACOS_PORT", 8848))
@@ -38,7 +33,7 @@ async def lifespan(app: FastAPI):
     # 2. 关闭时：注销服务 (可选，但推荐)
     await nacos_registry.deregister()
 
-# 初始化 FastAPI
+# 2. 初始化 FastAPI
 app = FastAPI(
     title="Data Collection Service",
     description="数据采集微服务",
