@@ -192,4 +192,52 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     });
   }
 });
-  
+
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'testWebhook') {
+    const serviceName = 'bilibili'; // 测试默认使用 B站
+    const testCookie = 'test_cookie_value_' + Date.now();
+
+    console.log("收到测试请求，准备发送 Webhook...");
+
+    chrome.storage.local.get(['webhookUrl'], function(result) {
+      const webhookUrl = result.webhookUrl;
+      if (!webhookUrl) {
+        sendResponse({ success: false, error: '未配置 Webhook 地址' });
+        return;
+      }
+
+      // 构造测试 Payload
+      const baseUrl = webhookUrl.replace(/\/$/, "");
+      const targetUrl = `${baseUrl}/platforms/${serviceName}/cookie`;
+
+      const payload = {
+        cookie: testCookie,
+        timestamp: new Date().toISOString(),
+        test: true, // 标记为测试请求
+        message: "Extension Connection Test"
+      };
+
+      fetch(targetUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      .then(response => {
+        if (response.ok) {
+          console.log("测试请求发送成功");
+          sendResponse({ success: true });
+        } else {
+          console.error("测试请求服务器返回错误:", response.status);
+          sendResponse({ success: false, error: `Server Error: ${response.status}` });
+        }
+      })
+      .catch(error => {
+        console.error("测试请求发送失败:", error);
+        sendResponse({ success: false, error: error.message });
+      });
+    });
+
+    return true; // 保持消息通道开启以进行异步响应
+  }
+});

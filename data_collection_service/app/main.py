@@ -16,7 +16,7 @@ SERVICE_NAME = os.getenv("SERVICE_NAME", "data-collection-service")
 SERVICE_IP = os.getenv("SERVICE_IP", "127.0.0.1")
 SERVICE_PORT = int(os.getenv("SERVICE_PORT", 8000))
 
-# 3. FastAPI 生命周期事件：启动时注册到 Nacos
+# 2. FastAPI 生命周期事件：启动时注册到 Nacos
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 import uvicorn
@@ -33,7 +33,7 @@ async def lifespan(app: FastAPI):
     # 2. 关闭时：注销服务 (可选，但推荐)
     await nacos_registry.deregister()
 
-# 2. 初始化 FastAPI
+# 3. 初始化 FastAPI
 app = FastAPI(
     title="Data Collection Service",
     description="数据采集微服务",
@@ -61,4 +61,4 @@ app.include_router(
 if __name__ == "__main__":
     import uvicorn
     # 本地调试启动命令，对应文档中的 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("data_collection_service.app.main:app", host="0.0.0.0", port=8000, reload=True)
