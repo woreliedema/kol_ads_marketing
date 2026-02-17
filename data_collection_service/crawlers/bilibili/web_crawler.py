@@ -2,7 +2,7 @@ import asyncio  # 异步I/O
 import os  # 系统操作
 import time  # 时间操作
 import yaml  # 配置文件
-
+import redis.asyncio as redis
 
 # 基础爬虫客户端和哔哩哔哩API端点
 from data_collection_service.crawlers.base_crawler import BaseCrawler
@@ -15,23 +15,50 @@ from data_collection_service.crawlers.bilibili.models import UserPostVideos, Use
 # 配置文件路径
 path = os.path.abspath(os.path.dirname(__file__))
 
-# 读取配置文件
+# 读取配置文件作为兜底（当Redis里没有数据时使用）
 with open(f"{path}/config.yaml", "r", encoding="utf-8") as f:
     config = yaml.safe_load(f)
 
 
 class BilibiliWebCrawler:
-
-    # 从配置文件读取哔哩哔哩请求头
+    def __init__(self):
+        # 初始化 Redis 连接
+        # 注意：如果在 Docker 内部运行，host 应该是 'redis' (docker-compose 中的服务名)
+        # 如果是本地调试，host 应该是 'localhost'
+        # 我们可以通过环境变量来自动切换
+        self.redis_host = os.getenv("REDIS_HOST", "127.0.0.1")
+        self.redis_port = int(os.getenv("REDIS_PORT", 6379))
+        # 创建连接池
+        self.redis = redis.Redis(
+            host=self.redis_host,
+            port=self.redis_port,
+            db=0,
+            decode_responses=True  # 自动解码为字符串，方便直接使用
+        )
+    # 优先从Redis获取cookie，如无法获取再从配置文件读取哔哩哔哩请求头
     async def get_bilibili_headers(self):
         bili_config = config['TokenManager']['bilibili']
+
+        # 1. 尝试从 Redis 获取最新的 Cookie
+        try:
+            redis_cookie = await self.redis.get("cookie:bilibili")
+            if redis_cookie:
+                current_cookie = redis_cookie
+                # print("使用了 Redis 中的 Cookie")
+            else:
+                # Redis 没数据，使用配置文件的默认值
+                current_cookie = bili_config["headers"]["cookie"]
+        except Exception as e:
+            print(f"Redis 读取失败，降级使用本地配置: {e}")
+            current_cookie = bili_config["headers"]["cookie"]
+
         kwargs = {
             "headers": {
                 "accept-language": bili_config["headers"]["accept-language"],
                 "origin": bili_config["headers"]["origin"],
                 "referer": bili_config["headers"]["referer"],
                 "user-agent": bili_config["headers"]["user-agent"],
-                "cookie": bili_config["headers"]["cookie"],
+                "cookie": current_cookie,
             },
             "proxies": {"http://": bili_config["proxies"]["http"], "https://": bili_config["proxies"]["https"]},
         }
@@ -293,21 +320,34 @@ class BilibiliWebCrawler:
         Args:
             cookie: 新的Cookie值
         """
-        global config
         service = "bilibili"
-        # 测试输出用
-        print('BilibiliWebCrawler before update', config["TokenManager"][service]["headers"]["cookie"])
-        print('BilibiliWebCrawler to update', cookie)
+        redis_key = f"cookie:{service}"
 
-        # 1. 更新内存中的配置（立即生效）
-        config["TokenManager"][service]["headers"]["cookie"] = cookie
-        # 测试输出用
-        print('BilibiliWebCrawler cookie updated', config["TokenManager"][service]["headers"]["cookie"])
+        try:
+            # 1. 写入 Redis (设置过期时间，例如 24小时，也可以不设置)
+            await self.redis.set(redis_key, cookie)
+            print(f"✅ {service} Cookie 已成功更新到 Redis")
 
-        # 2. 写入配置文件（持久化）
-        config_path = f"{path}/config.yaml"
-        with open(config_path, 'w', encoding='utf-8') as file:
-            yaml.dump(config, file, default_flow_style=False, allow_unicode=True, indent=2)
+            # 2. (可选) 同时更新内存中的 config 变量，保证当前进程无需再次请求 Redis
+            config["TokenManager"][service]["headers"]["cookie"] = cookie
+
+        except Exception as e:
+            print(f"❌ 更新 Cookie 到 Redis 失败: {e}")
+        # global config
+        # service = "bilibili"
+        # # 测试输出用
+        # print('BilibiliWebCrawler before update', config["TokenManager"][service]["headers"]["cookie"])
+        # print('BilibiliWebCrawler to update', cookie)
+        #
+        # # 1. 更新内存中的配置（立即生效）
+        # config["TokenManager"][service]["headers"]["cookie"] = cookie
+        # # 测试输出用
+        # print('BilibiliWebCrawler cookie updated', config["TokenManager"][service]["headers"]["cookie"])
+        #
+        # # 2. 写入配置文件（持久化）
+        # config_path = f"{path}/config.yaml"
+        # with open(config_path, 'w', encoding='utf-8') as file:
+        #     yaml.dump(config, file, default_flow_style=False, allow_unicode=True, indent=2)
 
     "-------------------------------------------------------utils接口列表-------------------------------------------------------"
 

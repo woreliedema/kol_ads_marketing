@@ -1,4 +1,30 @@
 services:
+  backend_service:
+    # 构建上下文：指向项目根目录 (根据 docker-compose.yml 所在位置，如果是 deploy 目录，则根目录是上一级)
+    build:
+      context: ../
+      dockerfile: Dockerfile
+    container_name: data_collection_service
+    restart: always
+    ports:
+      - "8000:8000"  # 映射 FastAPI 端口
+    environment:
+      # 关键配置：让 Python 代码知道 Redis 的主机名是 'redis' (对应下方的服务名)
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      # 数据库连接信息 (根据您的 settings 修改)
+      - MYSQL_HOST=mysql
+      - CLICKHOUSE_HOST=clickhouse
+    depends_on:
+      - redis
+      - mysql
+      - clickhouse
+      - nacos
+    volumes:
+      # 挂载代码目录，方便调试（可选）
+      - ../data_collection_service:/app/data_collection_service
+      # 挂载日志目录
+      - ./logs:/app/logs
   # 关系型数据库：存储核心结构化数据
   mysql:
     image: mysql:8.0
