@@ -1,4 +1,4 @@
-# 1. 使用 Python 3.9 作为基础镜像
+# 1. 使用 Python 3.10 作为基础镜像
 FROM python:3.10-slim
 
 # 2. 设置容器内的工作目录
@@ -23,4 +23,4 @@ COPY . .
 EXPOSE 8000
 
 # 7. 启动命令
-CMD ["uvicorn", "data_collection_service.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "-m", "uvicorn", "data_collection_service.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
