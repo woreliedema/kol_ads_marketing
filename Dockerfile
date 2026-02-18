@@ -15,6 +15,7 @@ ENV PYTHONPATH=/app
 # 4. 复制依赖文件并安装
 COPY requirements.txt .
 
+RUN pip install --no-cache-dir -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/
 
 # 5. 复制整个项目代码到容器中
 COPY . .
