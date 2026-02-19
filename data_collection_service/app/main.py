@@ -1,5 +1,6 @@
 import os
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 # 导入路由文件:b站爬虫、cookie刷新
 from data_collection_service.app.api.endpoints import bilibili_web,cookie_system
@@ -40,6 +41,16 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan
 )
+
+# [新增] 配置 CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 生产环境建议改为具体的扩展 ID 或域名，开发环境可以用 "*"
+    allow_credentials=True,
+    allow_methods=["*"],  # 允许所有方法，包括 OPTIONS, PUT
+    allow_headers=["*"],
+)
+
 # ==========================================
 # 4. 路由注册中心 (严格遵循文档规范：统一前缀 /api/v1/crawler)
 # ==========================================

@@ -12,6 +12,8 @@ services:
       # 关键配置：让 Python 代码知道 Redis 的主机名是 'redis' (对应下方的服务名)
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - NACOS_HOST=nacos  # [新增] 确保代码能读到这个 host
+      - NACOS_PORT=8848
       # 数据库连接信息 (根据您的 settings 修改)
       - MYSQL_HOST=mysql
       - CLICKHOUSE_HOST=clickhouse

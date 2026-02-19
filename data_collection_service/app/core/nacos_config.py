@@ -1,6 +1,7 @@
 
 from v2.nacos import NacosNamingService, ClientConfigBuilder, RegisterInstanceParam
 import logging
+import os
 
 # 配置日志
 logger = logging.getLogger(__name__)
@@ -9,7 +10,10 @@ class NacosRegistry:
     def __init__(self):
         self.naming_service = None
         # Nacos 配置信息 (建议从环境变量读取，这里保持你原有的硬编码或默认值)
-        self.server_address = "localhost:8848"
+        nacos_host = os.getenv("NACOS_HOST", "localhost")
+        nacos_port = os.getenv("NACOS_PORT", "8848")
+        self.server_address = f"{nacos_host}:{nacos_port}"
+
         self.namespace_id = "public"
         self.service_name = "data-collection-service"
         self.ip = "localhost"
