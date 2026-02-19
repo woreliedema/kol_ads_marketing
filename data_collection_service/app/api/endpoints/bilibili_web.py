@@ -12,7 +12,7 @@ comment_service = BilibiliCommentService()
 # 获取单个视频详情信息
 @router.get("/fetch_one_video", response_model=ResponseModel, summary="获取单个视频详情信息/Get single video data")
 async def fetch_one_video(request: Request,
-                          bv_id: str = Query(example=["BV1SEBxBSE8Q"], description="作品id/Video id")):
+                          bv_id: str = Query(examples=["BV1SEBxBSE8Q"], description="作品id/Video id")):
     """
     # [中文]
     ### 用途:
@@ -22,7 +22,7 @@ async def fetch_one_video(request: Request,
     ### 返回:
     - 视频详情信息
 
-    # [示例/Example]
+    # [示例/examples]
     bv_id = "BV1SEBxBSE8Q"
     up主：风采 含广告插入，时间段：02:51~03:54，完整视频全长：07:41
     """
@@ -43,8 +43,8 @@ async def fetch_one_video(request: Request,
 # 获取视频流地址
 @router.get("/fetch_video_playurl", response_model=ResponseModel, summary="获取视频流地址/Get video playurl")
 async def fetch_video_playurl(request: Request,
-                          bv_id: str = Query(example=["BV1SEBxBSE8Q"], description="作品id/Video id"),
-                          cid:str = Query(example=["171776208"], description="作品cid/Video cid")):
+                          bv_id: str = Query(examples=["BV1SEBxBSE8Q"], description="作品id/Video id"),
+                          cid:str = Query(examples=["171776208"], description="作品cid/Video cid")):
     """
     # [中文]
     ### 用途:
@@ -55,7 +55,7 @@ async def fetch_video_playurl(request: Request,
     ### 返回:
     - 视频流地址
 
-    # [示例/Example]
+    # [示例/examples]
     bv_id = "BV1SEBxBSE8Q"
     cid = "171776208" 忘记了，得重新获取
     """
@@ -77,7 +77,7 @@ async def fetch_video_playurl(request: Request,
 @router.get("/fetch_user_post_videos", response_model=ResponseModel,
             summary="获取用户主页作品数据/Get user homepage video data")
 async def fetch_user_post_videos(request: Request,
-                                 uid: str = Query(example=["178360345"], description="用户UID"),
+                                 uid: str = Query(examples=["178360345"], description="用户UID"),
                                  pn: int = Query(default=1, description="页码/Page number"),):
     """
     # [中文]
@@ -89,7 +89,7 @@ async def fetch_user_post_videos(request: Request,
     ### 返回:
     - 用户发布的视频数据
 
-    # [示例/Example]
+    # [示例/examples]
     uid = "178360345"
     pn = 1
     """
@@ -111,7 +111,7 @@ async def fetch_user_post_videos(request: Request,
 @router.get("/fetch_collect_folders", response_model=ResponseModel,
             summary="获取用户所有收藏夹信息/Get user collection folders")
 async def fetch_collect_folders(request: Request,
-                                uid: str = Query(example=["178360345"], description="用户UID")):
+                                uid: str = Query(examples=["178360345"], description="用户UID")):
     """
     # [中文]
     ### 用途:
@@ -121,7 +121,7 @@ async def fetch_collect_folders(request: Request,
     ### 返回:
     - 用户收藏夹信息
 
-    # [示例/Example]
+    # [示例/examples]
     uid = "178360345"
     """
     try:
@@ -142,7 +142,7 @@ async def fetch_collect_folders(request: Request,
 @router.get("/fetch_user_collection_videos", response_model=ResponseModel,
             summary="获取指定收藏夹内视频数据/Gets video data from a collection folder")
 async def fetch_user_collection_videos(request: Request,
-                                       folder_id: str = Query(example=["1756059545"],
+                                       folder_id: str = Query(examples=["1756059545"],
                                                               description="收藏夹id/collection folder id"),
                                        pn: int = Query(default=1, description="页码/Page number")
                                        ):
@@ -156,7 +156,7 @@ async def fetch_user_collection_videos(request: Request,
     ### 返回:
     - 指定收藏夹内视频数据
 
-    # [示例/Example]
+    # [示例/examples]
     folder_id = "1756059545"
     pn = 1
     """
@@ -178,7 +178,7 @@ async def fetch_user_collection_videos(request: Request,
 @router.get("/fetch_user_profile", response_model=ResponseModel,
             summary="获取指定用户的信息/Get information of specified user")
 async def fetch_user_profile(request: Request,
-                                uid: str = Query(example=["178360345"], description="用户UID")):
+                                uid: str = Query(examples=["178360345"], description="用户UID")):
     """
     # [中文]
     ### 用途:
@@ -188,7 +188,7 @@ async def fetch_user_profile(request: Request,
     ### 返回:
     - 指定用户的个人信息
 
-    # [示例/Example]
+    # [示例/examples]
     uid = "178360345"
     """
     try:
@@ -219,7 +219,7 @@ async def fetch_com_popular(request: Request,
     ### 返回:
     - 综合热门视频信息
 
-    # [示例/Example]
+    # [示例/examples]
     pn = 1
     """
     try:
@@ -240,7 +240,7 @@ async def fetch_com_popular(request: Request,
 @router.get("/fetch_video_comments", response_model=ResponseModel,
             summary="获取指定视频的评论/Get comments on the specified video")
 async def fetch_video_comments(request: Request,
-                                bv_id: str = Query(example=["BV1SEBxBSE8Q"], description="作品id/Video id"),
+                                bv_id: str = Query(examples=["BV1SEBxBSE8Q"], description="作品id/Video id"),
                                 pn: int = Query(default=1, description="页码/Page number")):
     """
     # [中文]
@@ -252,7 +252,7 @@ async def fetch_video_comments(request: Request,
     ### 返回:
     - 指定视频的评论数据
 
-    # [示例/Example]
+    # [示例/examples]
     bv_id = "BV1SEBxBSE8Q"
     pn = 1
     """
@@ -274,9 +274,9 @@ async def fetch_video_comments(request: Request,
 @router.get("/fetch_comment_reply", response_model=ResponseModel,
             summary="获取视频下指定评论的回复/Get reply to the specified comment")
 async def fetch_comment_reply(request: Request,
-                                bv_id: str = Query(example=["BV1SEBxBSE8Q"], description="作品id/Video id"),
+                                bv_id: str = Query(examples=["BV1SEBxBSE8Q"], description="作品id/Video id"),
                                 pn: int = Query(default=1, description="页码/Page number"),
-                                rpid: str = Query(example=["237109455120"], description="回复id/Reply id")):
+                                rpid: str = Query(examples=["237109455120"], description="回复id/Reply id")):
     """
     # [中文]
     ### 用途:
@@ -288,7 +288,7 @@ async def fetch_comment_reply(request: Request,
     ### 返回:
     - 指定评论的回复数据
 
-    # [示例/Example]
+    # [示例/examples]
     bv_id = "BV1SEBxBSE8Q"
     pn = 1
     rpid = "237109455120"
@@ -311,8 +311,8 @@ async def fetch_comment_reply(request: Request,
 @router.get("/fetch_user_dynamic", response_model=ResponseModel,
             summary="获取指定用户动态/Get dynamic information of specified user")
 async def fetch_user_dynamic(request: Request,
-                                uid: str = Query(example=["16015678"], description="用户UID"),
-                                offset: str = Query(default="", example=["953154282154098691"],
+                                uid: str = Query(examples=["16015678"], description="用户UID"),
+                                offset: str = Query(default="", examples=["953154282154098691"],
                                                     description="开始索引/offset")):
     """
     # [中文]
@@ -324,7 +324,7 @@ async def fetch_user_dynamic(request: Request,
     ### 返回:
     - 指定用户动态数据
 
-    # [示例/Example]
+    # [示例/examples]
     uid = "178360345"
     offset = "953154282154098691"
     """
@@ -345,7 +345,7 @@ async def fetch_user_dynamic(request: Request,
 # 获取视频实时弹幕
 @router.get("/fetch_video_danmaku", response_model=ResponseModel, summary="获取视频实时弹幕/Get Video Danmaku")
 async def fetch_video_danmaku(request: Request,
-                          cid: str = Query(example=["1639235405"], description="作品cid/Video cid")):
+                          cid: str = Query(examples=["1639235405"], description="作品cid/Video cid")):
     """
     # [中文]
     ### 用途:
@@ -355,7 +355,7 @@ async def fetch_video_danmaku(request: Request,
     ### 返回:
     - 视频实时弹幕
 
-    # [示例/Example]
+    # [示例/examples]
     cid = "1639235405"
     """
     try:
@@ -376,7 +376,7 @@ async def fetch_video_danmaku(request: Request,
 @router.get("/fetch_live_room_detail", response_model=ResponseModel,
             summary="获取指定直播间信息/Get information of specified live room")
 async def fetch_live_room_detail(request: Request,
-                                room_id: str = Query(example=["22816111"], description="直播间ID/Live room ID")):
+                                room_id: str = Query(examples=["22816111"], description="直播间ID/Live room ID")):
     """
     # [中文]
     ### 用途:
@@ -386,7 +386,7 @@ async def fetch_live_room_detail(request: Request,
     ### 返回:
     - 指定直播间信息
 
-    # [示例/Example]
+    # [示例/examples]
     room_id = "22816111"
     """
     try:
@@ -407,7 +407,7 @@ async def fetch_live_room_detail(request: Request,
 @router.get("/fetch_live_videos", response_model=ResponseModel,
             summary="获取直播间视频流/Get live video data of specified room")
 async def fetch_live_videos(request: Request,
-                                room_id: str = Query(example=["1815229528"], description="直播间ID/Live room ID")):
+                                room_id: str = Query(examples=["1815229528"], description="直播间ID/Live room ID")):
     """
     # [中文]
     ### 用途:
@@ -417,7 +417,7 @@ async def fetch_live_videos(request: Request,
     ### 返回:
     - 指定直播间视频流
 
-    # [示例/Example]
+    # [示例/examples]
     room_id = "1815229528"
     """
     try:
@@ -438,7 +438,7 @@ async def fetch_live_videos(request: Request,
 @router.get("/fetch_live_streamers", response_model=ResponseModel,
             summary="获取指定分区正在直播的主播/Get live streamers of specified live area")
 async def fetch_live_streamers(request: Request,
-                                area_id: str = Query(example=["9"], description="直播分区id/Live area ID"),
+                                area_id: str = Query(examples=["9"], description="直播分区id/Live area ID"),
                                 pn: int = Query(default=1, description="页码/Page number")):
     """
     # [中文]
@@ -450,7 +450,7 @@ async def fetch_live_streamers(request: Request,
     ### 返回:
     - 指定分区正在直播的主播
 
-    # [示例/Example]
+    # [示例/examples]
     area_id = "9"
     pn = 1
     """
@@ -480,7 +480,7 @@ async def fetch_all_live_areas(request: Request,):
     ### 返回:
     - 所有直播分区列表
 
-    # [示例/Example]
+    # [示例/examples]
     """
     try:
         data = await BilibiliWebCrawler.fetch_all_live_areas()
@@ -499,7 +499,7 @@ async def fetch_all_live_areas(request: Request,):
 # 通过bv号获得视频aid号
 @router.get("/bv_to_aid", response_model=ResponseModel, summary="通过bv号获得视频aid号/Generate aid by bvid")
 async def bv_to_aid(request: Request,
-                          bv_id: str = Query(example=["BV1SEBxBSE8Q"], description="作品id/Video id")):
+                          bv_id: str = Query(examples=["BV1SEBxBSE8Q"], description="作品id/Video id")):
     """
     # [中文]
     ### 用途:
@@ -509,7 +509,7 @@ async def bv_to_aid(request: Request,
     ### 返回:
     - 视频aid号
 
-    # [示例/Example]
+    # [示例/examples]
     bv_id = "BV1SEBxBSE8Q"
     """
     try:
@@ -529,7 +529,7 @@ async def bv_to_aid(request: Request,
 # 通过bv号获得视频分p信息
 @router.get("/fetch_video_parts", response_model=ResponseModel, summary="通过bv号获得视频分p信息/Get Video Parts By bvid")
 async def fetch_video_parts(request: Request,
-                          bv_id: str = Query(example=["BV1vf421i7hV"], description="作品id/Video id")):
+                          bv_id: str = Query(examples=["BV1vf421i7hV"], description="作品id/Video id")):
     """
     # [中文]
     ### 用途:
@@ -539,7 +539,7 @@ async def fetch_video_parts(request: Request,
     ### 返回:
     - 视频分p信息
 
-    # [示例/Example]
+    # [示例/examples]
     bv_id = "BV1vf421i7hV"
     """
     try:
