@@ -1,9 +1,11 @@
-from fastapi import APIRouter, Body, Query, Request, HTTPException  # 导入FastAPI组件
-
+from fastapi import APIRouter, Body, Query, Request, Depends, HTTPException  # 导入FastAPI组件
+from clickhouse_driver import Client
 
 from data_collection_service.app.api.models.APIResponseModel import ResponseModel, ErrorResponseModel  # 导入响应模型
+from data_collection_service.app.db.clickhouse import get_ch_client
 from data_collection_service.crawlers.bilibili.web_crawler import BilibiliWebCrawler  # 导入哔哩哔哩web爬虫
-from data_collection_service.app.services.bilibili_task_service import BilibiliCommentService # 导入哔哩哔哩评论全量抓取爬虫
+from data_collection_service.app.services.bilibili_task_service import BilibiliCommentService,BilibiliTaskService # 导入哔哩哔哩评论全量抓取爬虫
+from data_collection_service.app.services.storage_service import StorageService
 
 router = APIRouter()
 BilibiliWebCrawler = BilibiliWebCrawler()
@@ -557,8 +559,8 @@ async def fetch_video_parts(request: Request,
 
 
 # 获取b站全量评论数据
-@router.get("/scrape_all_comments", response_model=ResponseModel, summary="全量抓取视频评论(含子评论)")
-async def scrape_all_comments(request: Request,
+@router.get("/scrape_all_video_comments", response_model=ResponseModel, summary="全量抓取视频评论(含子评论)")
+async def scrape_all_video_comments(request: Request,
                                 bv_id: str = Query(..., description="视频BV号")):
     """
     注意：此接口耗时较长，建议异步调用或仅用于测试。
@@ -566,7 +568,7 @@ async def scrape_all_comments(request: Request,
     """
     try:
         # 调用业务层逻辑
-        data = await comment_service.scrape_all_comments(bv_id)
+        data = await comment_service.scrape_all_video_comments(bv_id)
 
         return ResponseModel(
             code=200,
@@ -576,6 +578,32 @@ async def scrape_all_comments(request: Request,
                 "comments": data  # 包含嵌套的 sub_comments
             }
         )
+    except Exception as e:
+        status_code = 500
+        detail = ErrorResponseModel(
+            code=status_code,
+            router=request.url.path,
+            message=str(e)
+        )
+        raise HTTPException(status_code=status_code, detail=detail)
+
+
+@router.post("/task/comments/{bv_id}")
+async def trigger_comment_collection(
+        # request: Request,
+        # bv_id: str = Query(..., description="视频BV号"),
+        ch_client: Client = Depends(get_ch_client)  # FastAPI自动注入
+):
+    try:
+        # 1. 实例化各个组件，将 ch_client 喂给 StorageService
+        storage = StorageService(ch_client=ch_client)
+        crawler = BilibiliWebCrawler()
+        task_service = BilibiliTaskService(crawler=crawler, storage=storage)
+
+        # 2. 触发核心业务流 (爬取 -> 清洗 -> 入库)
+        await task_service.collect_and_store_video_comments(bv_id)
+
+        return {"status": "success", "msg": f"视频 {bv_id} 的评论采集已完成入库"}
     except Exception as e:
         status_code = 500
         detail = ErrorResponseModel(

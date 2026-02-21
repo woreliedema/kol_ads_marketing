@@ -1,14 +1,10 @@
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
+from contextlib import asynccontextmanager
 # 导入路由文件:b站爬虫、cookie刷新
 from data_collection_service.app.api.endpoints import bilibili_web,cookie_system
-# 假设您将刚刚写的 cookie 刷新接口放在了 system.py 里
-
-
-
-
+from data_collection_service.app.core.nacos_config import nacos_registry
 # 1. Nacos 连接配置
 # (为了代码健壮性，这里建议使用 os.getenv 读取环境变量，赋予默认值以匹配本地开发)
 NACOS_IP = os.getenv("NACOS_IP", "127.0.0.1")
@@ -18,11 +14,9 @@ SERVICE_IP = os.getenv("SERVICE_IP", "127.0.0.1")
 SERVICE_PORT = int(os.getenv("SERVICE_PORT", 8000))
 
 # 2. FastAPI 生命周期事件：启动时注册到 Nacos
-from fastapi import FastAPI
-from contextlib import asynccontextmanager
-import uvicorn
+
 # 导入封装好的 Nacos 注册实例
-from data_collection_service.app.core.nacos_config import nacos_registry
+
 
 
 
