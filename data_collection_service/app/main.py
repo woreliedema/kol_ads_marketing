@@ -1,12 +1,16 @@
 import os
 from fastapi import FastAPI
+from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-# 导入路由文件:b站爬虫、cookie刷新
+
+# 导入路由文件:b站爬虫、cookie刷新、clickhouse连接
 from data_collection_service.app.api.endpoints import bilibili_web,cookie_system
 from data_collection_service.app.core.nacos_config import nacos_registry
+from data_collection_service.app.db.clickhouse import ClickHouseManager
 # 1. Nacos 连接配置
-# (为了代码健壮性，这里建议使用 os.getenv 读取环境变量，赋予默认值以匹配本地开发)
+# (为了代码健壮性，这里使用 os.getenv 并结合本地 .env 文件读取环境变量，赋予默认值以匹配本地开发)
+load_dotenv()
 NACOS_IP = os.getenv("NACOS_IP", "127.0.0.1")
 NACOS_PORT = int(os.getenv("NACOS_PORT", 8848))
 SERVICE_NAME = os.getenv("SERVICE_NAME", "data-collection-service")
@@ -16,16 +20,30 @@ SERVICE_PORT = int(os.getenv("SERVICE_PORT", 8000))
 # 2. FastAPI 生命周期事件：启动时注册到 Nacos
 
 # 导入封装好的 Nacos 注册实例
-
-
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # 1. 启动时：注册服务
     await nacos_registry.register()
+    # 2. 初始化 ClickHouse 数据库连接池
+    # 根据 docker-compose.yml 提取环境变量，若本地独立运行则默认 127.0.0.1
+    ch_host = os.getenv("CLICKHOUSE_HOST", "127.0.0.1")
+    ch_port = int(os.getenv("CLICKHOUSE_PORT", 9000))
+    ch_user = os.getenv("CLICKHOUSE_USER", "default")
+    ch_password = os.getenv("CLICKHOUSE_PASSWORD", "")
+
+    ClickHouseManager.init_db(
+        host=ch_host,
+        port=ch_port,
+        user=ch_user,
+        password=ch_password,
+        database="ods"
+    )
+    # 交出控制权给 FastAPI 应用
     yield
-    # 2. 关闭时：注销服务 (可选，但推荐)
+
+    # 3. 断开 ClickHouse 数据库连接
+    ClickHouseManager.close_db()
+    # 4. 注销 Nacos 服务
     await nacos_registry.deregister()
 
 # 3. 初始化 FastAPI

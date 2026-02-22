@@ -12,7 +12,7 @@ class BilibiliCommentService:
     def __init__(self):
         self.crawler = BilibiliWebCrawler()
 
-    async def scrape_all_video_comments(self, bv_id: str):
+    async def scrape_video_all_comments(self, bv_id: str):
         """
         全量抓取指定视频的所有评论（含二级子评论）
         """
