@@ -204,7 +204,9 @@ class BilibiliTaskService:
                 reply_page = await self.crawler.fetch_comment_reply_new(bvid, pn=1, rpid=str(rpid), aid=aid)
                 if reply_page.get('code') == 0:
                     reply_data = reply_page.get('data', {})
-                    sub_replies = reply_data.get('replies', [])
+                    # sub_replies = reply_data.get('replies', [])
+                    # 如果 get 到的是 None，强制转为空列表 []
+                    sub_replies = reply_data.get('replies') or []
                     comment['replies'] = sub_replies
 
                     reply_count = reply_data.get('page', {}).get('count', rcount)

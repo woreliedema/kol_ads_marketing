@@ -20,8 +20,8 @@ class DataCleaningService:
             if cls._validate_data(root_record):
                 cleaned_data.append(root_record)
 
-            # 处理子评论 (楼中楼)
-            replies = item.get('replies', [])
+            # 处理子评论 (楼中楼), 加上 or [] 防止 replies 为 None
+            replies = item.get('replies') or []
             for reply in replies:
                 sub_record = cls._parse_single_comment(reply, bvid, oid)
                 if cls._validate_data(sub_record):
@@ -43,7 +43,7 @@ class DataCleaningService:
         content = raw.get('content', {})
 
         # 提取提及用户和跳转链接
-        mentions = content.get('members', [])
+        mentions = content.get('members') or []
         mentions_mids = [cls._safe_int(m.get('mid', 0)) for m in mentions if m.get('mid')]
 
         jump_url = content.get('jump_url', {})
