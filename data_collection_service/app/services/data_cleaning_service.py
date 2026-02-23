@@ -44,7 +44,7 @@ class DataCleaningService:
 
         # 提取提及用户和跳转链接
         mentions = content.get('members') or []
-        mentions_mids = [cls._safe_int(m.get('mid', 0)) for m in mentions if m.get('mid')]
+        mentions_mids = [cls._safe_string(m.get('mid', '')) for m in mentions if m.get('mid')]
 
         jump_url = content.get('jump_url', {})
 
