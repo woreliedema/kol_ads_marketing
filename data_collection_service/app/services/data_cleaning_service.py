@@ -77,7 +77,7 @@ class DataCleaningService:
             'mentions_mids': mentions_mids,
             'jump_url_title': cls._safe_string(jump_url.get('title', '')),
             'jump_url': cls._safe_string(jump_url.get('url', '')),
-            'official_verify': json.dumps(member.get('official_verify', {}), ensure_ascii=False),
+            # 'official_verify': json.dumps(member.get('official_verify', {}), ensure_ascii=False),
 
             # 指标及时间维度
             'like_count': cls._safe_int(raw.get('like', 0)),

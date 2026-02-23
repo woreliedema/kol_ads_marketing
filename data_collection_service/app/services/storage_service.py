@@ -17,9 +17,13 @@ class StorageService:
             return False
 
         try:
-            # 过滤掉完全无效的数据（比如核心主键为0的脏数据）
             # 此处可以根据需要决定是否在通用层做初步过滤
-            query = f"INSERT INTO {table_name} VALUES"
+            # 动态获取字典的 keys，显式指定要插入的列名
+            # 例如将 keys 拼接成: "rpid, oid, bvid, mid, message, ..."
+            columns = ', '.join(data_list[0].keys())
+
+            query = f"INSERT INTO {table_name}({columns}) VALUES"
+
             self.ch.execute(query, data_list)
             logger.info(f"[ClickHouse] 成功批量写入 {len(data_list)} 条数据到 {table_name}")
             return True
