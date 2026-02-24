@@ -142,7 +142,7 @@ class BilibiliTaskService:
 
     async def collect_and_store_video_comments(self, bvid: str):
         """
-        整合爬取、清洗、入库的完整流程
+        整合b站视频下所有评论的爬取、清洗、入库的完整流程
         """
         logger.info(f"[Task] 开始执行视频 {bvid} 的评论采集任务")
 
@@ -227,16 +227,53 @@ class BilibiliTaskService:
                 await asyncio.sleep(1.0)
 
         # 5. 数据清洗与格式化
-        cleaned_data = DataCleaningService.clean_bilibili_comments(all_comments, bvid, aid)
+        cleaned_data = DataCleaningService.clean_bilibili_video_comments(all_comments, bvid, aid)
         logger.info(f"[清洗] 完成数据转换，清洗后产生 {len(cleaned_data)} 条标准化数据 (含子评论)")
 
         # 6. 通用化写入 ClickHouse
         # 即使未来换成动态评论、直播弹幕，这行代码都不用变，只需换 table_name 即可
-        if cleaned_data:
-            self.storage.save_data_to_clickhouse(
-                table_name="ods.bilibili_video_comments",
-                data_list=cleaned_data
-            )
+        if not cleaned_data:
+            logger.warning(f"[Task] 清洗 {bvid} 视频数据为空或接口返回错误，跳过入库")
+            return False
 
+        success = self.storage.save_data_to_clickhouse(
+            table_name="ods.bilibili_video_comments",
+            data_list=cleaned_data
+        )
 
+        if success:
+            logger.info(f"[Task] 视频 {bvid} 全量评论信息入库成功")
+        return success
+
+    async def collect_and_store_user_info(self, mid: str):
+        """
+        采集 B站 UP主基本信息并写入 ClickHouse
+        """
+        logger.info(f"[Task] 开始采集用户 {mid} 的档案信息")
+
+        # 1. 调用爬虫获取原始数据
+        try:
+            # 使用已有的 fetch_user_profile 接口
+            raw_data = await self.crawler.fetch_user_profile(uid=mid)
+        except Exception as e:
+            logger.error(f"[Task] 用户 {mid} 爬取失败: {str(e)}")
+            return False
+
+        # 2. 数据清洗
+        cleaned_data = DataCleaningService.clean_user_info(raw_data)
+
+        if not cleaned_data:
+            logger.warning(f"[Task] 用户 {mid} 数据为空或接口返回错误，跳过入库")
+            return False
+
+        # 3. 写入 ClickHouse
+        # 注意：table_name 必须与你在 ClickHouse 创建的表名一致
+        success = self.storage.save_data_to_clickhouse(
+            table_name="ods.bilibili_user_info",
+            data_list=cleaned_data
+        )
+
+        if success:
+            logger.info(f"[Task] 用户 {mid} ({cleaned_data[0]['uname']}) 信息入库成功")
+        return success
 

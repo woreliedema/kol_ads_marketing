@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Body, Query, Request, Depends, HTTPException  # 导入FastAPI组件
 from clickhouse_driver import Client
+import json
 
 from data_collection_service.app.api.models.APIResponseModel import ResponseModel, ErrorResponseModel  # 导入响应模型
 from data_collection_service.crawlers.bilibili.web_crawler import BilibiliWebCrawler  # 导入哔哩哔哩web爬虫
@@ -607,18 +608,30 @@ async def scrape_and_store_comments(
         task_service = BilibiliTaskService(crawler=BilibiliWebCrawler, storage=storage)
 
         # 2. 执行核心爬取、清洗、入库链路
-        await task_service.collect_and_store_video_comments(bv_id)
+        success = await task_service.collect_and_store_video_comments(bv_id)
 
         # 3. 使用你项目中统一的 ResponseModel 返回
-        return ResponseModel(
-            code=200,
-            router=request.url.path,
-            data={
-                "bv_id": bv_id,
-                "status": "success",
-                "message": "评论数据已成功采集并写入 ClickHouse"
-            }
-        )
+        if success:
+            return ResponseModel(
+                code=200,
+                router=request.url.path,
+                data={
+                    "bv_id": bv_id,
+                    "status": "success",
+                    "message": "评论数据已成功采集并写入 ClickHouse"
+                }
+            )
+        else:
+            # 业务层面的失败（如账号不存在或反爬）
+            return ResponseModel(
+                code=500,
+                router=request.url.path,
+                data={
+                    "mid": bv_id,
+                    "status": "failed",
+                    "message": "采集失败，请查看后台日志"
+                }
+            )
     except Exception as e:
         # 异常情况捕获，使用你项目中统一的 ErrorResponseModel
         status_code = 500
@@ -626,6 +639,59 @@ async def scrape_and_store_comments(
             code=status_code,
             router=request.url.path,
             message=f"采集或入库任务失败: {str(e)}",
+            params=dict(request.query_params)
+        )
+        raise HTTPException(status_code=status_code, detail=detail.dict())
+
+
+@router.post("/task/scrape_user_info", response_model=ResponseModel, summary="[持久化]采集UP主基本信息并入库")
+async def scrape_user_info(
+        request: Request,
+        mid: str = Query(..., examples=["2687303"], description="用户ID (mid)"),
+        ch_client: Client = Depends(get_ch_client) # 自动注入 ClickHouse 客户端
+):
+    """
+    # [中文]
+    ### 用途:
+    - 采集指定 UP 主的个人信息（含粉丝勋章、直播间状态、认证信息等）
+    - 清洗后存入 ClickHouse `ods.bilibili_user_info` 表
+    """
+    try:
+        # 1. 组装 Service
+        storage = StorageService(ch_client=ch_client)
+        task_service = BilibiliTaskService(crawler=BilibiliWebCrawler, storage=storage)
+
+        # 2. 执行任务
+        success = await task_service.collect_and_store_user_info(mid)
+
+        if success:
+            return ResponseModel(
+                code=200,
+                router=request.url.path,
+                data={
+                    "mid": mid,
+                    "status": "success",
+                    "message": "UP主信息采集并入库成功"
+                }
+            )
+        else:
+            # 业务层面的失败（如账号不存在或反爬）
+            return ResponseModel(
+                code=500,
+                router=request.url.path,
+                data={
+                    "mid": mid,
+                    "status": "failed",
+                    "message": "采集失败，请查看后台日志"
+                }
+            )
+
+    except Exception as e:
+        status_code = 500
+        detail = ErrorResponseModel(
+            code=status_code,
+            router=request.url.path,
+            message=f"任务执行异常: {str(e)}",
             params=dict(request.query_params)
         )
         raise HTTPException(status_code=status_code, detail=detail.dict())
