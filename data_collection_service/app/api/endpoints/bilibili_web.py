@@ -695,3 +695,56 @@ async def scrape_user_info(
             params=dict(request.query_params)
         )
         raise HTTPException(status_code=status_code, detail=detail.dict())
+
+
+@router.post("/task/scrape_video_info", response_model=ResponseModel, summary="[持久化]采集视频基本信息并入库")
+async def scrape_video_info(
+        request: Request,
+        bv_id: str = Query(..., examples=["BV1SEBxBSE8Q"], description="视频BV号"),
+        ch_client: Client = Depends(get_ch_client)  # 自动注入 ClickHouse 客户端
+):
+    """
+    # [中文]
+    ### 用途:
+    - 采集指定视频的详情信息（播放量、硬币、UP主信息、分P列表等）
+    - 清洗后存入 ClickHouse `ods.bilibili_video_info` 表
+    - **支持历史版本**：多次调用会产生多条记录（通过 insert_datetime 区分）
+    """
+    try:
+        # 1. 组装 Service (无状态)
+        storage = StorageService(ch_client=ch_client)
+        task_service = BilibiliTaskService(crawler=BilibiliWebCrawler, storage=storage)
+
+        # 2. 执行任务
+        success = await task_service.collect_and_store_video_info(bvid=bv_id)
+
+        if success:
+            return ResponseModel(
+                code=200,
+                router=request.url.path,
+                data={
+                    "bv_id": bv_id,
+                    "status": "success",
+                    "message": "视频基本信息采集并入库成功"
+                }
+            )
+        else:
+            return ResponseModel(
+                code=500,
+                router=request.url.path,
+                data={
+                    "bv_id": bv_id,
+                    "status": "failed",
+                    "message": "采集失败，可能视频不存在或被风控"
+                }
+            )
+
+    except Exception as e:
+        status_code = 500
+        detail = ErrorResponseModel(
+            code=status_code,
+            router=request.url.path,
+            message=f"任务执行异常: {str(e)}",
+            params=dict(request.query_params)
+        )
+        raise HTTPException(status_code=status_code, detail=detail.dict())

@@ -134,13 +134,118 @@ class DataCleaningService:
 
             # --- 商业潜力 ---
             'charge_total': cls._safe_int(elec.get('total')),  # 充电人数
-            'tags': data.get('tags') or [],  # 已经是 List[str]，CK Array(String) 可直接接收，同时防止NoneType报错
-
-            # --- 时间字段 ---
-            'insert_datetime': datetime.now()
+            'tags': data.get('tags') or []  # 已经是 List[str]，CK Array(String) 可直接接收，同时防止NoneType报错
         }
 
         return [user_info]
+
+    @classmethod
+    def clean_video_info(cls, raw_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        清洗逻辑 - 适配 ods.bilibili_video_info 新版数据字典
+        """
+        if not raw_data or raw_data.get('code') != 0:
+            return []
+
+        data = raw_data.get('data', {})
+        if not data:
+            return []
+
+        owner = data.get('owner', {})
+        stat = data.get('stat', {})
+        rights = data.get('rights', {})
+
+        # 处理 pages 和 honor 为 JSON 字符串
+        honor_reply_json = json.dumps(data.get('honor_reply', {}), ensure_ascii=False)
+
+        video_info = {
+            # --- 基础信息 ---
+            'bvid': cls._safe_string(data.get('bvid')),
+            'oid': cls._safe_int(data.get('aid')),  # 映射: aid -> oid
+            'title': cls._safe_string(data.get('title')),
+            'introduction': cls._safe_string(data.get('desc')),  # 映射: desc -> introduction
+            'introduction_v2': cls._safe_string(data.get('desc_v2')),
+            'videos': cls._safe_int(data.get('videos')),
+            'tid': cls._safe_int(data.get('tid')),
+            'tid_v2': cls._safe_int(data.get('tid_v2')),
+            'tname': cls._safe_string(data.get('tname')),
+            'tname_v2': cls._safe_string(data.get('tname_v2')),
+            'copyright': cls._safe_int(data.get('copyright')),
+            'pic': cls._safe_string(data.get('pic')),
+            'duration': cls._safe_int(data.get('duration')),
+            'state': cls._safe_int(data.get('state')),
+            'mission_id': cls._safe_int(data.get('mission_id')),
+            # --- UP主信息 ---
+            'mid': cls._safe_int(owner.get('mid')),
+            'uname': cls._safe_string(owner.get('name')),  # 映射: name -> uname
+            'face': cls._safe_string(owner.get('face')),
+            # --- 权限信息 ---
+            'is_cooperation': cls._safe_int(rights.get('is_cooperation')),
+            'no_reprint': cls._safe_int(rights.get('no_reprint')),
+            'elec': cls._safe_int(rights.get('elec')),
+            'is_stein_gate': cls._safe_int(rights.get('is_stein_gate')),
+            # --- 统计指标 (注意重命名) ---
+            'views_count': cls._safe_int(stat.get('view')),
+            'danmaku_count': cls._safe_int(stat.get('danmaku')),
+            'replys_count': cls._safe_int(stat.get('reply')),
+            'favorites_count': cls._safe_int(stat.get('favorite')),
+            'coin_count': cls._safe_int(stat.get('coin')),
+            'share_count': cls._safe_int(stat.get('share')),
+            'likes_count': cls._safe_int(stat.get('like')),
+            'now_rank': cls._safe_int(stat.get('now_rank')),
+            'his_rank': cls._safe_int(stat.get('his_rank')),
+            'honor_reply_json': honor_reply_json,
+            # --- 时间维度 ---
+            'ctime': cls._safe_datetime(data.get('ctime')),
+            'ctime_ts': cls._safe_int(data.get('ctime')),
+            'pubdate': cls._safe_datetime(data.get('pubdate')),
+            'pubdate_ts': cls._safe_int(data.get('pubdate'))
+        }
+
+        return [video_info]
+
+    @classmethod
+    def clean_video_pages_info(cls, raw_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        清洗 B站 视频分P列表数据 (pages)
+        适配 ods.bilibili_video_pages 表结构
+        """
+        # 1. 基础校验
+        if not raw_data or raw_data.get('code') != 0:
+            return []
+        data = raw_data.get('data', {})
+        if not data:
+            return []
+        # 获取主视频的关联键
+        bvid = cls._safe_string(data.get('bvid'))
+        oid = cls._safe_int(data.get('aid'))
+        # 获取 pages 列表
+        pages = data.get('pages', [])
+        if not pages:
+            return []
+        cleaned_pages = []
+        # 2. 遍历 pages 列表，生成多条记录
+        for p in pages:
+            dimension = p.get('dimension', {})
+            page_record = {
+                # --- 关联键 ---
+                'cid': cls._safe_int(p.get('cid')),
+                'bvid': bvid,
+                'oid': oid,
+                # --- 分P详情 ---
+                'page_num': cls._safe_int(p.get('page')),
+                'part_title': cls._safe_string(p.get('part')),
+                'duration': cls._safe_int(p.get('duration')),
+                'from': cls._safe_string(p.get('from')),
+                # --- 画质与预览 ---
+                'width': cls._safe_int(dimension.get('width')),
+                'height': cls._safe_int(dimension.get('height')),
+                'rotate': cls._safe_int(dimension.get('rotate')),
+                'first_frame': cls._safe_string(p.get('first_frame'))
+            }
+            cleaned_pages.append(page_record)
+
+        return cleaned_pages
 
     @classmethod
     def _validate_data(cls, data: Dict[str, Any]) -> bool:

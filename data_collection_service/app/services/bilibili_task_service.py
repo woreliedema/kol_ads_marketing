@@ -261,19 +261,51 @@ class BilibiliTaskService:
 
         # 2. 数据清洗
         cleaned_data = DataCleaningService.clean_user_info(raw_data)
-
         if not cleaned_data:
             logger.warning(f"[Task] 用户 {mid} 数据为空或接口返回错误，跳过入库")
             return False
-
         # 3. 写入 ClickHouse
-        # 注意：table_name 必须与你在 ClickHouse 创建的表名一致
+        # 注意：table_name 必须与 ClickHouse 的表名一致
         success = self.storage.save_data_to_clickhouse(
             table_name="ods.bilibili_user_info",
             data_list=cleaned_data
         )
-
         if success:
             logger.info(f"[Task] 用户 {mid} ({cleaned_data[0]['uname']}) 信息入库成功")
         return success
 
+    async def collect_and_store_video_info(self, bvid: str):
+        """
+        [Task] 采集 B站 视频基本信息并写入 ClickHouse
+        """
+        logger.info(f"[Task] 开始采集视频 {bvid} 的基本信息")
+        # 1. 调用底层爬虫获取原始数据 (复用 fetch_one_video)
+        try:
+            raw_data = await self.crawler.fetch_one_video(bv_id=bvid)
+        except Exception as e:
+            logger.error(f"[Task] 视频 {bvid} 网络请求失败: {str(e)}")
+            return False
+        # 2. 数据清洗 (解析 JSON -> 扁平字典)
+        cleaned_data = DataCleaningService.clean_video_info(raw_data)
+        pages_data = DataCleaningService.clean_video_pages_info(raw_data)
+        if not cleaned_data:
+            logger.warning(f"[Task] 视频 {bvid} 数据为空或接口返回错误，跳过入库")
+            return False
+        if not pages_data:
+            logger.warning(f"[Task] 视频 {bvid} 无分P数据或解析为空")
+        # 3. 写入 ClickHouse
+        # 注意: table_name 必须与 ClickHouse 的表名一致
+        success = self.storage.save_data_to_clickhouse(
+            table_name="ods.bilibili_video_info",
+            data_list=cleaned_data
+        )
+        pages_info_success = self.storage.save_data_to_clickhouse(
+            table_name="ods.bilibili_video_pages_info",
+            data_list=pages_data
+        )
+        if success:
+            title = cleaned_data[0].get('title', 'Unknown')
+            logger.info(f"[Task] 视频 {bvid}： ({title}) 信息入库成功")
+        if pages_info_success:
+            logger.info(f"[Task] 视频 {bvid} 分P数据入库成功，共 {len(pages_data)} 集")
+        return True
