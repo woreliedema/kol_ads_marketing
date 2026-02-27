@@ -47,7 +47,7 @@ async def fetch_one_video(request: Request,
 @router.get("/fetch_video_playurl", response_model=ResponseModel, summary="获取视频流地址/Get video playurl")
 async def fetch_video_playurl(request: Request,
                           bv_id: str = Query(examples=["BV1SEBxBSE8Q"], description="作品id/Video id"),
-                          cid:str = Query(examples=["171776208"], description="作品cid/Video cid")):
+                          cid:str = Query(examples=["115762320705119"], description="作品cid/Video cid")):
     """
     # [中文]
     ### 用途:
@@ -60,7 +60,7 @@ async def fetch_video_playurl(request: Request,
 
     # [示例/examples]
     bv_id = "BV1SEBxBSE8Q"
-    cid = "171776208" 忘记了，得重新获取
+    cid = "115762320705119"
     """
     try:
         data = await BilibiliWebCrawler.fetch_video_playurl(bv_id, cid)
