@@ -141,7 +141,7 @@ async def fetch_collect_folders(request: Request,
 
 
 @router.get("/fetch_user_relation", response_model=ResponseModel,
-            summary="获取用户所有收藏夹信息/Get user collection folders")
+            summary="获取用户关系/Get user relationship")
 async def fetch_user_relation(request: Request,
                                 uid: str = Query(examples=["178360345"], description="用户UID")):
     """
