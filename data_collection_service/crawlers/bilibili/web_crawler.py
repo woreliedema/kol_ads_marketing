@@ -261,6 +261,22 @@ class BilibiliWebCrawler:
             response = await crawler.fetch_get_json(endpoint)
         return response
 
+        # 获取指定用户的关系信息
+    async def fetch_user_relation(self, uid: str) -> dict:
+        # 获取请求头信息
+        kwargs = await self.get_bilibili_headers()
+        # 创建基础爬虫对象
+        base_crawler = BaseCrawler(proxies=kwargs["proxies"], crawler_headers=kwargs["headers"])
+        async with base_crawler as crawler:
+            # 通过模型生成基本请求参数
+            params = UserProfile(mid=uid)
+            # 创建请求endpoint
+            generator = EndpointGenerator(params.dict())
+            endpoint = await generator.user_relation_endpoint()
+            # 发送请求，获取请求响应结果
+            response = await crawler.fetch_get_json(endpoint)
+        return response
+
     # 获取视频实时弹幕
     async def fetch_video_danmaku(self, cid: str):
         # 获取请求头信息

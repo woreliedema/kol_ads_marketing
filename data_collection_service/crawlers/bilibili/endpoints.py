@@ -26,6 +26,9 @@ class BilibiliAPIEndpoints:
     # 用户个人信息
     USER_DETAIL = f"{BILIAPI_DOMAIN}/x/space/wbi/acc/info"
 
+    # 用户关系
+    USER_RELATION = f"{BILIAPI_DOMAIN}/relation/stat"
+
     # 综合热门
     COM_POPULAR = f"{BILIAPI_DOMAIN}/x/web-interface/popular"
 

@@ -4,13 +4,12 @@ import json
 
 from data_collection_service.app.api.models.APIResponseModel import ResponseModel, ErrorResponseModel  # 导入响应模型
 from data_collection_service.crawlers.bilibili.web_crawler import BilibiliWebCrawler  # 导入哔哩哔哩web爬虫
-from data_collection_service.app.services.bilibili_task_service import BilibiliCommentService,BilibiliTaskService # 导入哔哩哔哩评论全量抓取爬虫
+from data_collection_service.app.services.bilibili_task_service import BilibiliTaskService # 导入哔哩哔哩评论全量抓取爬虫
 from data_collection_service.app.services.storage_service import StorageService
 from data_collection_service.app.db.clickhouse import get_ch_client
 
 router = APIRouter()
 BilibiliWebCrawler = BilibiliWebCrawler()
-comment_service = BilibiliCommentService()
 
 # 获取单个视频详情信息
 @router.get("/fetch_one_video", response_model=ResponseModel, summary="获取单个视频详情信息/Get single video data")
@@ -140,6 +139,35 @@ async def fetch_collect_folders(request: Request,
                                     )
         raise HTTPException(status_code=status_code, detail=detail)
 
+
+@router.get("/fetch_user_relation", response_model=ResponseModel,
+            summary="获取用户所有收藏夹信息/Get user collection folders")
+async def fetch_user_relation(request: Request,
+                                uid: str = Query(examples=["178360345"], description="用户UID")):
+    """
+    # [中文]
+    ### 用途:
+    - 获取用户关系数据(含粉丝、关注等)
+    ### 参数:
+    - uid: 用户UID
+    ### 返回:
+    - 用户关系数据
+
+    # [示例/examples]
+    uid = ["178360345"]
+    """
+    try:
+        data = await BilibiliWebCrawler.fetch_collect_folders(uid)
+        return ResponseModel(code=200,
+                             router=request.url.path,
+                             data=data)
+    except Exception as e:
+        status_code = 400
+        detail = ErrorResponseModel(code=status_code,
+                                    router=request.url.path,
+                                    params=dict(request.query_params),
+                                    )
+        raise HTTPException(status_code=status_code, detail=detail)
 
 # 获取指定收藏夹内视频数据
 @router.get("/fetch_user_collection_videos", response_model=ResponseModel,
@@ -558,35 +586,6 @@ async def fetch_video_parts(request: Request,
                                     )
         raise HTTPException(status_code=status_code, detail=detail)
 
-
-# 获取b站全量评论数据
-@router.get("/scrape_video_all_comments", response_model=ResponseModel, summary="全量抓取视频评论(含子评论)")
-async def scrape_video_all_comments(request: Request,
-                                bv_id: str = Query(..., description="视频BV号")):
-    """
-    注意：此接口耗时较长，建议异步调用或仅用于测试。
-    生产环境应通过 /task/create 接口提交任务到 Kafka 后台执行。
-    """
-    try:
-        # 调用业务层逻辑
-        data = await comment_service.scrape_video_all_comments(bv_id)
-
-        return ResponseModel(
-            code=200,
-            router=request.url.path,
-            data={
-                "total_count": len(data),
-                "comments": data  # 包含嵌套的 sub_comments
-            }
-        )
-    except Exception as e:
-        status_code = 500
-        detail = ErrorResponseModel(
-            code=status_code,
-            router=request.url.path,
-            message=str(e)
-        )
-        raise HTTPException(status_code=status_code, detail=detail)
 
 
 @router.post("/task/scrape_and_store_comments", response_model=ResponseModel, summary="[持久化]全量抓取视频评论并入库")

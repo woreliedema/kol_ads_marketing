@@ -31,6 +31,13 @@ class EndpointGenerator:
         final_endpoint = BilibiliAPIEndpoints.USER_DETAIL + '?' + endpoint
         return final_endpoint
 
+    async def user_relation_endpoint(self) -> str:
+        # 添加w_rid
+        endpoint = await WridManager.wrid_model_endpoint(params=self.params)
+        # 拼接成最终结果并返回
+        final_endpoint = BilibiliAPIEndpoints.USER_RELATION + '?' + endpoint
+        return final_endpoint
+
     # 获取综合热门视频信息 生成enpoint
     async def com_popular_endpoint(self) -> str:
         # 添加w_rid
