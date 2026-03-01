@@ -157,7 +157,7 @@ async def fetch_user_relation(request: Request,
     uid = ["178360345"]
     """
     try:
-        data = await BilibiliWebCrawler.fetch_collect_folders(uid)
+        data = await BilibiliWebCrawler.fetch_user_relation(uid)
         return ResponseModel(code=200,
                              router=request.url.path,
                              data=data)
