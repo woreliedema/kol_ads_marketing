@@ -696,6 +696,59 @@ async def scrape_user_info(
         raise HTTPException(status_code=status_code, detail=detail.dict())
 
 
+@router.post("/task/scrape_user_relation", response_model=ResponseModel, summary="[持久化]采集UP主关系信息并入库")
+async def scrape_user_info(
+        request: Request,
+        mid: str = Query(..., examples=["2687303"], description="用户ID (mid)"),
+        ch_client: Client = Depends(get_ch_client) # 自动注入 ClickHouse 客户端
+):
+    """
+    # [中文]
+    ### 用途:
+    - 采集指定 UP 主的关系信息（含粉丝数、关注数等）
+    - 清洗后存入 ClickHouse `ods.bilibili_user_relation` 表
+    """
+    try:
+        # 1. 组装 Service
+        storage = StorageService(ch_client=ch_client)
+        task_service = BilibiliTaskService(crawler=BilibiliWebCrawler, storage=storage)
+
+        # 2. 执行任务
+        success = await task_service.collect_and_store_user_relation(mid)
+
+        if success:
+            return ResponseModel(
+                code=200,
+                router=request.url.path,
+                data={
+                    "mid": mid,
+                    "status": "success",
+                    "message": "UP主信息采集并入库成功"
+                }
+            )
+        else:
+            # 业务层面的失败（如账号不存在或反爬）
+            return ResponseModel(
+                code=500,
+                router=request.url.path,
+                data={
+                    "mid": mid,
+                    "status": "failed",
+                    "message": "采集失败，请查看后台日志"
+                }
+            )
+
+    except Exception as e:
+        status_code = 500
+        detail = ErrorResponseModel(
+            code=status_code,
+            router=request.url.path,
+            message=f"任务执行异常: {str(e)}",
+            params=dict(request.query_params)
+        )
+        raise HTTPException(status_code=status_code, detail=detail.dict())
+
+
 @router.post("/task/scrape_video_info", response_model=ResponseModel, summary="[持久化]采集视频基本信息并入库")
 async def scrape_video_info(
         request: Request,

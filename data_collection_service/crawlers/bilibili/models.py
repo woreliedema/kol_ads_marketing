@@ -18,6 +18,10 @@ class UserProfile(BaseRequestsModel):
     mid: str
 
 
+class UserRelation(BaseRequestsModel):
+    vmid: str
+
+
 class UserDynamic(BaseRequestsModel):
     host_mid: str
     offset: str

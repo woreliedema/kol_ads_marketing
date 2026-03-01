@@ -140,6 +140,31 @@ class DataCleaningService:
         return [user_info]
 
     @classmethod
+    def clean_user_relation(cls, raw_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        清洗 B站 UP主个人信息，适配 ods.relation 表结构
+        :param raw_data: fetch_user_relation 接口返回的原始 JSON
+        """
+        if not raw_data or raw_data.get('code') != 0:
+            return []
+
+        data = raw_data.get('data', {})
+        if not data:
+            return []
+
+        # 2. 构造符合 ClickHouse DDL 的字典
+        user_info = {
+            # --- 基础信息 ---
+            'mid': cls._safe_int(data.get('mid')),
+            'following_count': cls._safe_int(data.get('following')),
+            'is_whisper': cls._safe_int(data.get('whisper')),
+            'is_black': cls._safe_int(data.get('black')),
+            'fans': cls._safe_int(data.get('follower'))
+        }
+
+        return [user_info]
+
+    @classmethod
     def clean_video_info(cls, raw_data: Dict[str, Any]) -> List[Dict[str, Any]]:
         """
         清洗逻辑 - 适配 ods.bilibili_video_info 新版数据字典

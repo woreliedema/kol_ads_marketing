@@ -10,7 +10,7 @@ from data_collection_service.crawlers.bilibili.endpoints import BilibiliAPIEndpo
 # 哔哩哔哩工具类
 from data_collection_service.crawlers.bilibili.utils import EndpointGenerator, bv2av, ResponseAnalyzer
 # 数据请求模型
-from data_collection_service.crawlers.bilibili.models import UserPostVideos, UserProfile, ComPopular, UserDynamic, PlayUrl
+from data_collection_service.crawlers.bilibili.models import UserPostVideos, UserProfile, UserRelation, ComPopular, UserDynamic, PlayUrl
 
 # 配置文件路径
 path = os.path.abspath(os.path.dirname(__file__))
@@ -269,7 +269,7 @@ class BilibiliWebCrawler:
         base_crawler = BaseCrawler(proxies=kwargs["proxies"], crawler_headers=kwargs["headers"])
         async with base_crawler as crawler:
             # 通过模型生成基本请求参数
-            params = UserProfile(mid=uid)
+            params = UserRelation(vmid=uid)
             # 创建请求endpoint
             generator = EndpointGenerator(params.dict())
             endpoint = await generator.user_relation_endpoint()
