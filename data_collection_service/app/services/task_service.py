@@ -20,7 +20,6 @@ class TaskService:
 
     async def create_and_dispatch_task(
             self,
-            task_type: int,
             platform_type: int,
             resource_type: str,
             resource_ids: list,
@@ -50,7 +49,6 @@ class TaskService:
         new_task = CrawlerTask(
             task_id=task_id_str,
             task_name=task_name,
-            task_type=task_type,
             platform_type=platform_type,
             resource_type=resource_type,
             # 将资源列表封装进 payload JSON 中，完美契合 MySQL 的 JSON 字段
@@ -69,7 +67,6 @@ class TaskService:
             kafka_message = {
                 "task_id": task_id_str,  # 透传给消费者的批次号 (batch_id)
                 "task_name": task_name,
-                "task_type": task_type,
                 "platform_type": platform_type,
                 "resource_type": resource_type,
                 "resource_payload": {"ids": resource_ids},

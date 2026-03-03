@@ -588,8 +588,8 @@ async def fetch_video_parts(request: Request,
 
 
 
-@router.post("/task/scrape_and_store_comments", response_model=ResponseModel, summary="[持久化]全量抓取视频评论并入库")
-async def scrape_and_store_comments(
+@router.post("/task/scrape_and_store_video_comments", response_model=ResponseModel, summary="[持久化]全量抓取视频评论并入库")
+async def scrape_and_store_video_comments(
         request: Request,
         bv_id: str = Query(..., examples=["BV1SEBxBSE8Q"], description="视频BV号"),
         batch_id: str = Query(..., examples=["735628193746194432"], description="模拟任务批次ID (batch_id)"),
@@ -644,8 +644,8 @@ async def scrape_and_store_comments(
         raise HTTPException(status_code=status_code, detail=detail.dict())
 
 
-@router.post("/task/scrape_user_info", response_model=ResponseModel, summary="[持久化]采集UP主基本信息并入库")
-async def scrape_user_info(
+@router.post("/task/scrape_and_store_user_info", response_model=ResponseModel, summary="[持久化]采集UP主基本信息并入库")
+async def scrape_and_store_user_info(
         request: Request,
         mid: str = Query(..., examples=["2687303"], description="用户ID (mid)"),
         batch_id: str = Query(..., examples=["735628193746194432"], description="模拟任务批次ID (batch_id)"),
@@ -698,8 +698,8 @@ async def scrape_user_info(
         raise HTTPException(status_code=status_code, detail=detail.dict())
 
 
-@router.post("/task/scrape_user_relation", response_model=ResponseModel, summary="[持久化]采集UP主关系信息并入库")
-async def scrape_user_info(
+@router.post("/task/scrape_and_store_user_relation", response_model=ResponseModel, summary="[持久化]采集UP主关系信息并入库")
+async def scrape_and_store_user_relation(
         request: Request,
         mid: str = Query(..., examples=["2687303"], description="用户ID (mid)"),
         batch_id: str = Query(..., examples=["735628193746194432"], description="模拟任务批次ID (batch_id)"),
@@ -752,8 +752,8 @@ async def scrape_user_info(
         raise HTTPException(status_code=status_code, detail=detail.dict())
 
 
-@router.post("/task/scrape_video_info", response_model=ResponseModel, summary="[持久化]采集视频基本信息并入库")
-async def scrape_video_info(
+@router.post("/task/scrape_and_store_video_info", response_model=ResponseModel, summary="[持久化]采集视频基本信息并入库")
+async def scrape_and_store_video_info(
         request: Request,
         bv_id: str = Query(..., examples=["BV1SEBxBSE8Q"], description="视频BV号"),
         batch_id: str = Query(..., examples=["735628193746194432"], description="模拟任务批次ID (batch_id)"),
@@ -772,7 +772,7 @@ async def scrape_video_info(
         task_service = BilibiliTaskService(crawler=BilibiliWebCrawler, storage=storage)
 
         # 2. 执行任务
-        success = await task_service.collect_and_store_video_info(bvid=bv_id,batch_id=batch_id)
+        success = await task_service.collect_and_store_video_info(target_id=bv_id,batch_id=batch_id)
 
         if success:
             return ResponseModel(

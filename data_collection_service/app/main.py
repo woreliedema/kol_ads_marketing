@@ -11,14 +11,10 @@ from data_collection_service.app.core.nacos_config import nacos_registry
 from data_collection_service.app.db.clickhouse import ClickHouseManager
 from data_collection_service.crawlers.utils.logger import logger
 from data_collection_service.app.services.kafka_service import kafka_producer
+from data_collection_service.app.services.kafka_consumer import kafka_consumer
 # 1. Nacos 连接配置
 # (为了代码健壮性，这里使用 os.getenv 并结合本地 .env 文件读取环境变量，赋予默认值以匹配本地开发)
 load_dotenv()
-NACOS_IP = os.getenv("NACOS_IP", "127.0.0.1")
-NACOS_PORT = int(os.getenv("NACOS_PORT", 8848))
-SERVICE_NAME = os.getenv("SERVICE_NAME", "data-collection-service")
-SERVICE_IP = os.getenv("SERVICE_IP", "127.0.0.1")
-SERVICE_PORT = int(os.getenv("SERVICE_PORT", 8000))
 
 # 2. FastAPI 生命周期事件：启动时注册到 Nacos
 
@@ -46,10 +42,15 @@ async def lifespan(app: FastAPI):
             password=ch_password,
             database="ods"  # or: os.getenv("CLICKHOUSE_DB", "ods")
         )
+        logger.info("[Init] ClickHouse 数据库连接初始化成功。")
+
         # 步骤 2: 启动 Kafka 生产者
         await kafka_producer.start()
+        logger.info("[Init] Kafka 生产者启动成功。")
+        # 步骤 2: 启动 Kafka 消费
+        await kafka_consumer.start()
+        logger.info("[Init] Kafka 消费者后台守护进程启动成功。")
 
-        logger.info("[Init] ClickHouse 数据库连接初始化成功。")
         # 步骤 3: 注册到 Nacos 注册中心 (服务就绪，开始接收流量)
         await nacos_registry.register()
         logger.info("[Init] Nacos 服务注册成功。")
@@ -74,13 +75,24 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.error(f"[Cleanup] Nacos 注销异常: {str(e)}")
 
-        # 步骤 2. 安全关闭 Kafka (确保最后的一批日志/任务不会因为断电丢失)
-        await kafka_producer.stop()
+        # 步骤 2. 停止 Kafka 消费者 (不再从队列拉取新任务，允许正在执行的任务跑完)
+        try:
+            await kafka_consumer.stop()
+            logger.info("[Cleanup] Kafka 消费者已安全关闭。")
+        except Exception as e:
+            logger.error(f"[Cleanup] Kafka 消费者关闭异常: {str(e)}")
 
         # 优雅停机缓冲期：给当前还在处理中的请求留出 1 秒收尾时间
         await asyncio.sleep(1)
 
-        # 步骤 3: 停机第三步：断开 ClickHouse 等底层数据库连接
+        # 步骤 3. 安全关闭 Kafka 生产者 (确保状态更新等最后一条消息被 flush 到 Broker)
+        try:
+            await kafka_producer.stop()
+            logger.info("[Cleanup] Kafka 生产者已安全关闭。")
+        except Exception as e:
+            logger.error(f"[Cleanup] Kafka 生产者关闭异常: {str(e)}")
+
+        # 步骤 4: 断开 ClickHouse 等底层数据库连接
         try:
             ClickHouseManager.close_db()
             logger.info("[Cleanup] ClickHouse 数据库连接已安全关闭。")

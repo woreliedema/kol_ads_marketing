@@ -14,10 +14,11 @@ class BilibiliTaskService:
         self.crawler = crawler
         self.storage = storage
 
-    async def collect_and_store_video_comments(self, bvid: str, batch_id: str):
+    async def collect_and_store_video_comments(self, target_id: str, batch_id: str):
         """
         整合b站视频下所有评论的爬取、清洗、入库的完整流程
         """
+        bvid = target_id
         logger.info(f"[Task {batch_id}] 开始执行视频 {bvid} 的评论采集任务")
 
         # 1. 获取视频 aid
@@ -119,10 +120,11 @@ class BilibiliTaskService:
             logger.info(f"[Task {batch_id}] 视频 {bvid} 全量评论信息入库成功")
         return success
 
-    async def collect_and_store_user_info(self, mid: str, batch_id: str):
+    async def collect_and_store_user_info(self, target_id: str, batch_id: str):
         """
         采集 B站 UP主基本信息并写入 ClickHouse
         """
+        mid = target_id
         logger.info(f"[Task {batch_id}] 开始采集用户 {mid} 的档案信息")
 
         # 1. 调用爬虫获取原始数据
@@ -148,10 +150,11 @@ class BilibiliTaskService:
             logger.info(f"[Task {batch_id}] 用户 {mid} ({cleaned_data[0]['uname']}) 信息入库成功")
         return success
 
-    async def collect_and_store_user_relation(self, mid: str, batch_id: str):
+    async def collect_and_store_user_relation(self, target_id: str, batch_id: str):
         """
-        采集 B站 UP主基本信息并写入 ClickHouse
+        采集 B站 UP主关系信息并写入 ClickHouse
         """
+        mid = target_id
         logger.info(f"[Task {batch_id}] 开始采集用户 {mid} 的档案信息")
 
         # 1. 调用爬虫获取原始数据
@@ -177,10 +180,11 @@ class BilibiliTaskService:
             logger.info(f"[Task {batch_id}] 用户 {mid} 信息入库成功")
         return success
 
-    async def collect_and_store_video_info(self, bvid: str, batch_id: str):
+    async def collect_and_store_video_info(self, target_id: str, batch_id: str):
         """
         [Task] 采集 B站 视频基本信息并写入 ClickHouse
         """
+        bvid = target_id
         logger.info(f"[Task {batch_id}] 开始采集视频 {bvid} 的基本信息")
         # 1. 调用底层爬虫获取原始数据 (复用 fetch_one_video)
         try:

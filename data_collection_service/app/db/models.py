@@ -15,9 +15,9 @@ class CrawlerTask(Base):
     task_id = Column(String(50), unique=True, nullable=False, index=True, comment="全局唯一批次/任务号")
     task_name = Column(String(100), nullable=True, comment="任务备注名 (如: '美妆区百大UP主每日快照')")
     platform_type = Column(SmallInteger, default=3, comment="平台: 3=B站, 1=抖音, 2=Tiktok")
-    task_type = Column(SmallInteger, nullable=False,comment="任务动作: 1=全量评论(时序), 2=基础画像(时序), 3=核心指标监测(时序)")
+    # task_type = Column(SmallInteger, nullable=False,comment="任务动作: 1=全量评论(时序), 2=基础画像(时序), 3=核心指标监测(时序)")
     # 【核心重构 2】将 target 拆分为 "维度" 和 "负载集合"
-    resource_type = Column(String(20), nullable=False,comment="资源维度: 'video'(视频), 'user'(用户), 'keyword'(关键词)")
+    resource_type = Column(String(20), nullable=False,comment="资源维度:  scrape_and_store_video_comments, scrape_and_store_user_info...")
     resource_payload = Column(JSON, nullable=False, comment="资源清单 (支持批量): {'ids': ['BV1xx', 'BV2xx']}")
     task_status = Column(SmallInteger, default=0, index=True, comment="状态: 0=待执行, 1=执行中, 2=成功, 3=失败")
     params = Column(JSON, nullable=True, comment="调度参数与限制: {'max_pages': 5, 'retry': 3}")

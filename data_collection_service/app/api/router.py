@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 # 导入外部操作接口和内部微服务接口
-from data_collection_service.app.api.endpoints import bilibili_web,inner_bilibili,cookie_system
+from data_collection_service.app.api.endpoints import bilibili_web, inner_bilibili, cookie_system, crawler_task
 
 
 # 创建一个全局的 APIRouter 实例
@@ -28,4 +28,10 @@ router.include_router(
     tags=["Inner Bilibili Data Collection"]
     # 内部鉴权依赖:
     # dependencies=[Depends(verify_service_signature)]
+)
+
+# 挂载爬虫任务接口
+router.include_router(
+    crawler_task.router,
+    tags=["Task Scheduler"]
 )

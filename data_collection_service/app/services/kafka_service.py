@@ -28,8 +28,8 @@ class KafkaProducerManager:
             self.producer = AIOKafkaProducer(
                 bootstrap_servers=self.bootstrap_servers,
                 value_serializer=lambda v: json.dumps(v, ensure_ascii=False).encode('utf-8'),
-                # acks='1' 代表只要 Leader 写入成功就返回，兼顾高吞吐与安全性
-                acks='1'
+                # acks=1 代表只要 Leader 写入成功就返回，兼顾高吞吐与安全性
+                acks=1
             )
             await self.producer.start()
             logger.info(f"🚀 [Kafka] Producer 已成功连接到集群: {self.bootstrap_servers}")
