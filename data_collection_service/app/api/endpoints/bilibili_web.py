@@ -592,6 +592,7 @@ async def fetch_video_parts(request: Request,
 async def scrape_and_store_comments(
         request: Request,
         bv_id: str = Query(..., examples=["BV1SEBxBSE8Q"], description="视频BV号"),
+        batch_id: str = Query(..., examples=["735628193746194432"], description="模拟任务批次ID (batch_id)"),
         ch_client: Client = Depends(get_ch_client)  # ⬅️ 核心：自动注入全局初始化的 ClickHouse Client
 ):
     """
@@ -607,7 +608,7 @@ async def scrape_and_store_comments(
         task_service = BilibiliTaskService(crawler=BilibiliWebCrawler, storage=storage)
 
         # 2. 执行核心爬取、清洗、入库链路
-        success = await task_service.collect_and_store_video_comments(bv_id)
+        success = await task_service.collect_and_store_video_comments(bv_id, batch_id)
 
         # 3. 使用你项目中统一的 ResponseModel 返回
         if success:
@@ -647,6 +648,7 @@ async def scrape_and_store_comments(
 async def scrape_user_info(
         request: Request,
         mid: str = Query(..., examples=["2687303"], description="用户ID (mid)"),
+        batch_id: str = Query(..., examples=["735628193746194432"], description="模拟任务批次ID (batch_id)"),
         ch_client: Client = Depends(get_ch_client) # 自动注入 ClickHouse 客户端
 ):
     """
@@ -661,7 +663,7 @@ async def scrape_user_info(
         task_service = BilibiliTaskService(crawler=BilibiliWebCrawler, storage=storage)
 
         # 2. 执行任务
-        success = await task_service.collect_and_store_user_info(mid)
+        success = await task_service.collect_and_store_user_info(mid, batch_id)
 
         if success:
             return ResponseModel(
@@ -700,6 +702,7 @@ async def scrape_user_info(
 async def scrape_user_info(
         request: Request,
         mid: str = Query(..., examples=["2687303"], description="用户ID (mid)"),
+        batch_id: str = Query(..., examples=["735628193746194432"], description="模拟任务批次ID (batch_id)"),
         ch_client: Client = Depends(get_ch_client) # 自动注入 ClickHouse 客户端
 ):
     """
@@ -714,7 +717,7 @@ async def scrape_user_info(
         task_service = BilibiliTaskService(crawler=BilibiliWebCrawler, storage=storage)
 
         # 2. 执行任务
-        success = await task_service.collect_and_store_user_relation(mid)
+        success = await task_service.collect_and_store_user_relation(mid, batch_id)
 
         if success:
             return ResponseModel(
@@ -753,6 +756,7 @@ async def scrape_user_info(
 async def scrape_video_info(
         request: Request,
         bv_id: str = Query(..., examples=["BV1SEBxBSE8Q"], description="视频BV号"),
+        batch_id: str = Query(..., examples=["735628193746194432"], description="模拟任务批次ID (batch_id)"),
         ch_client: Client = Depends(get_ch_client)  # 自动注入 ClickHouse 客户端
 ):
     """
@@ -768,7 +772,7 @@ async def scrape_video_info(
         task_service = BilibiliTaskService(crawler=BilibiliWebCrawler, storage=storage)
 
         # 2. 执行任务
-        success = await task_service.collect_and_store_video_info(bvid=bv_id)
+        success = await task_service.collect_and_store_video_info(bvid=bv_id,batch_id=batch_id)
 
         if success:
             return ResponseModel(

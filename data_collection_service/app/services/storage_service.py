@@ -1,7 +1,7 @@
 import logging
 from clickhouse_driver import Client
 
-from data_collection_service.app.api.models.query_model import OperatorEnum,ComplexSearchRequest
+from data_collection_service.app.api.models.QueryModel import OperatorEnum,ComplexSearchRequest
 
 logger = logging.getLogger(__name__)
 

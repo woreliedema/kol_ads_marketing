@@ -1,19 +1,13 @@
 from fastapi import APIRouter, Body, Request, HTTPException, Path
-from pydantic import BaseModel
 
 
 from data_collection_service.app.api.models.APIResponseModel import ResponseModel, ErrorResponseModel
+from data_collection_service.app.api.models.CookieUpdateModel import CookieUpdatePayload
 from data_collection_service.crawlers.bilibili.web_crawler import BilibiliWebCrawler
 # 导入其他爬虫...
 
 router = APIRouter()
 
-# 此时 Payload 就不需要传 service 字段了，因为它已经在 URL 路径里了
-class CookieUpdatePayload(BaseModel):
-    cookie: str
-    timestamp: str
-    test: bool = False
-    message: str = ""
 
 @router.put("/platforms/{platform_name}/cookie", response_model=ResponseModel, summary="更新平台Cookie Webhook")
 async def update_platform_cookie(

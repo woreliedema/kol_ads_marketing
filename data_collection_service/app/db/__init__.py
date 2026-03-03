@@ -1,5 +1,4 @@
 """
-base:
+clickhouse:
 models:
-session:
 """

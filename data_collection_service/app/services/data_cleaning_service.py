@@ -9,28 +9,54 @@ class DataCleaningService:
     """
 
     @classmethod
-    def clean_bilibili_video_comments(cls, raw_comments: List[Dict[str, Any]], bvid: str, oid: int) -> List[Dict[str, Any]]:
+    def _validate_data(cls, data: Dict[str, Any]) -> bool:
+        return data.get('rpid', 0) != 0 and data.get('oid', 0) != 0 and bool(data.get('bvid'))
+
+    @staticmethod
+    def _safe_int(value: Any, default: int = 0) -> int:
+        try:
+            return int(value)
+        except (ValueError, TypeError):
+            return default
+
+    @staticmethod
+    def _safe_string(value: Any, default: str = '') -> str:
+        if value is None: return default
+        try:
+            return str(value)
+        except Exception:
+            return default
+
+    @staticmethod
+    def _safe_datetime(timestamp: Any) -> datetime:
+        try:
+            return datetime.fromtimestamp(int(timestamp))
+        except (ValueError, TypeError):
+            return datetime.now()
+
+    @classmethod
+    def clean_bilibili_video_comments(cls, raw_comments: List[Dict[str, Any]], bvid: str, oid: int, batch_id: str) -> List[Dict[str, Any]]:
         cleaned_data = []
         if not raw_comments:
             return cleaned_data
 
         for item in raw_comments:
             # 处理主评论
-            root_record = cls._parse_video_single_comment(item, bvid, oid)
+            root_record = cls._parse_video_single_comment(item, bvid, oid, batch_id)
             if cls._validate_data(root_record):
                 cleaned_data.append(root_record)
 
             # 处理子评论 (楼中楼), 加上 or [] 防止 replies 为 None
             replies = item.get('replies') or []
             for reply in replies:
-                sub_record = cls._parse_video_single_comment(reply, bvid, oid)
+                sub_record = cls._parse_video_single_comment(reply, bvid, oid, batch_id)
                 if cls._validate_data(sub_record):
                     cleaned_data.append(sub_record)
 
         return cleaned_data
 
     @classmethod
-    def _parse_video_single_comment(cls, raw: Dict[str, Any], bvid: str, oid: int) -> Dict[str, Any]:
+    def _parse_video_single_comment(cls, raw: Dict[str, Any], bvid: str, oid: int, batch_id: str) -> Dict[str, Any]:
         """
 
         :param raw:
@@ -52,6 +78,7 @@ class DataCleaningService:
             'rpid': cls._safe_int(raw.get('rpid_str', raw.get('rpid', 0))),
             'oid': oid,
             'bvid': bvid,
+            'batch_id': cls._safe_int(batch_id),
             'root_id': cls._safe_int(raw.get('root_str', raw.get('root', 0))),
             'parent_id': cls._safe_int(raw.get('parent_str', raw.get('parent', 0))),
             'dialog_id': cls._safe_int(raw.get('dialog_str', raw.get('dialog', 0))),
@@ -88,10 +115,11 @@ class DataCleaningService:
         }
 
     @classmethod
-    def clean_user_info(cls, raw_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def clean_user_info(cls, raw_data: Dict[str, Any], batch_id: str) -> List[Dict[str, Any]]:
         """
         清洗 B站 UP主个人信息，适配 ods.bilibili_user_info 表结构
         :param raw_data: fetch_user_profile 接口返回的原始 JSON
+        :param batch_id:
         """
         if not raw_data or raw_data.get('code') != 0:
             return []
@@ -112,6 +140,7 @@ class DataCleaningService:
         user_info = {
             # --- 基础信息 ---
             'mid': cls._safe_int(data.get('mid')),
+            'batch_id': cls._safe_int(batch_id),
             'uname': cls._safe_string(data.get('name')),  # 注意：API返回name，库表字段uname
             'sign': cls._safe_string(data.get('sign')),
             'level': cls._safe_int(data.get('level')),
@@ -140,10 +169,11 @@ class DataCleaningService:
         return [user_info]
 
     @classmethod
-    def clean_user_relation(cls, raw_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def clean_user_relation(cls, raw_data: Dict[str, Any], batch_id: str) -> List[Dict[str, Any]]:
         """
         清洗 B站 UP主个人信息，适配 ods.relation 表结构
         :param raw_data: fetch_user_relation 接口返回的原始 JSON
+        :param batch_id:
         """
         if not raw_data or raw_data.get('code') != 0:
             return []
@@ -156,6 +186,7 @@ class DataCleaningService:
         user_info = {
             # --- 基础信息 ---
             'mid': cls._safe_int(data.get('mid')),
+            'batch_id': cls._safe_int(batch_id),
             'following_count': cls._safe_int(data.get('following')),
             'is_whisper': cls._safe_int(data.get('whisper')),
             'is_black': cls._safe_int(data.get('black')),
@@ -165,7 +196,7 @@ class DataCleaningService:
         return [user_info]
 
     @classmethod
-    def clean_video_info(cls, raw_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def clean_video_info(cls, raw_data: Dict[str, Any], batch_id: str) -> List[Dict[str, Any]]:
         """
         清洗逻辑 - 适配 ods.bilibili_video_info 新版数据字典
         """
@@ -187,6 +218,7 @@ class DataCleaningService:
             # --- 基础信息 ---
             'bvid': cls._safe_string(data.get('bvid')),
             'oid': cls._safe_int(data.get('aid')),  # 映射: aid -> oid
+            'batch_id': cls._safe_int(batch_id),
             'title': cls._safe_string(data.get('title')),
             'introduction': cls._safe_string(data.get('desc')),  # 映射: desc -> introduction
             'introduction_v2': cls._safe_string(data.get('desc_v2')),
@@ -230,7 +262,7 @@ class DataCleaningService:
         return [video_info]
 
     @classmethod
-    def clean_video_pages_info(cls, raw_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def clean_video_pages_info(cls, raw_data: Dict[str, Any], batch_id: str) -> List[Dict[str, Any]]:
         """
         清洗 B站 视频分P列表数据 (pages)
         适配 ods.bilibili_video_pages 表结构
@@ -257,6 +289,7 @@ class DataCleaningService:
                 'cid': cls._safe_int(p.get('cid')),
                 'bvid': bvid,
                 'oid': oid,
+                'batch_id': cls._safe_int(batch_id),
                 # --- 分P详情 ---
                 'page_num': cls._safe_int(p.get('page')),
                 'part_title': cls._safe_string(p.get('part')),
@@ -271,29 +304,3 @@ class DataCleaningService:
             cleaned_pages.append(page_record)
 
         return cleaned_pages
-
-    @classmethod
-    def _validate_data(cls, data: Dict[str, Any]) -> bool:
-        return data.get('rpid', 0) != 0 and data.get('oid', 0) != 0 and bool(data.get('bvid'))
-
-    @staticmethod
-    def _safe_int(value: Any, default: int = 0) -> int:
-        try:
-            return int(value)
-        except (ValueError, TypeError):
-            return default
-
-    @staticmethod
-    def _safe_string(value: Any, default: str = '') -> str:
-        if value is None: return default
-        try:
-            return str(value)
-        except Exception:
-            return default
-
-    @staticmethod
-    def _safe_datetime(timestamp: Any) -> datetime:
-        try:
-            return datetime.fromtimestamp(int(timestamp))
-        except (ValueError, TypeError):
-            return datetime.now()

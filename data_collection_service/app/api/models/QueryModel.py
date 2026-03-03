@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Any, List, Optional, Union
+from typing import Any, List, Union
 from enum import Enum
 
 class OperatorEnum(str, Enum):

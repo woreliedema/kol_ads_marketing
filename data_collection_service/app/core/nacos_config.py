@@ -1,10 +1,11 @@
-
+from dotenv import load_dotenv
 from v2.nacos import NacosNamingService, ClientConfigBuilder, RegisterInstanceParam
-import logging
 import os
 
+from data_collection_service.crawlers.utils.logger import logger
+# 加载环境变量
+load_dotenv()
 # 配置日志
-logger = logging.getLogger(__name__)
 
 class NacosRegistry:
     def __init__(self):
@@ -14,10 +15,12 @@ class NacosRegistry:
         nacos_port = os.getenv("NACOS_PORT", "8848")
         self.server_address = f"{nacos_host}:{nacos_port}"
 
-        self.namespace_id = "public"
-        self.service_name = "data-collection-service"
-        self.ip = "localhost"
-        self.port = 8000
+        self.namespace_id = os.getenv("NACOS_NAMESPACE", "public")
+        self.service_name = os.getenv("SERVICE_NAME", "data-collection-service")
+
+        self.ip = os.getenv("SERVICE_IP", "127.0.0.1")
+        self.port = int(os.getenv("SERVICE_PORT", 8000))
+
         self.group_name = "DEFAULT_GROUP"
         self.cluster_name = "DEFAULT"
 
@@ -38,14 +41,16 @@ class NacosRegistry:
                 cluster_name=self.cluster_name,
                 group_name=self.group_name,
                 healthy=True,
-                weight=1.0
+                weight=1.0,
+                # 设置为临时实例，服务挂掉时 Nacos 会基于心跳超时自动剔除节点
+                ephemeral=True
             )
             await self.naming_service.register_instance(instance_param)
-            logger.info(f"服务已成功注册到 Nacos: {self.service_name}@{self.ip}:{self.port}")
+            logger.info(f"[Nacos] 服务已成功注册到 Nacos: {self.service_name}@{self.ip}:{self.port}")
         except Exception as e:
-            logger.error(f"Nacos 注册失败: {e}")
+            logger.error(f"[Nacos] 注册失败: {e}")
             # 根据需求决定是否抛出异常阻断启动
-            # raise e
+            raise e
 
     async def deregister(self):
         """从 Nacos 注销服务"""
@@ -63,9 +68,9 @@ class NacosRegistry:
                     group_name=self.group_name
                 )
                 await self.naming_service.deregister_instance(param)
-                logger.info(f"服务已从 Nacos 注销")
+                logger.info(f"[Nacos] 服务{self.service_name} 已安全注销")
             except Exception as e:
-                logger.error(f"Nacos 注销失败: {e}")
+                logger.error(f"[Nacos] 注销失败: {e}")
 
 
 nacos_registry = NacosRegistry()
