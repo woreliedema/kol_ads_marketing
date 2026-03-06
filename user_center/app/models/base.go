@@ -1,8 +1,8 @@
 package models
 
 import (
-	"time"
 	"gorm.io/gorm"
+	"time"
 )
 
 // RoleType 定义系统角色枚举
@@ -18,13 +18,14 @@ const (
 type SysUser struct {
 	ID           uint64         `gorm:"primaryKey;autoIncrement" json:"id"`
 	Username     string         `gorm:"type:varchar(64);uniqueIndex;not null;comment:登录名(手机/邮箱)" json:"username"`
-	PasswordHash string         `gorm:"type:varchar(255);not null;comment:bcrypt加密哈希" json:"-"` // json:"-" 严防密码泄漏
+	PasswordHash string         `gorm:"type:varchar(255);not null;comment:登录密码哈基值" json:"-"` // json:"-" 严防密码泄漏
 	Role         RoleType       `gorm:"type:tinyint;not null;comment:1-红人 2-品牌方 99-管理员" json:"role"`
 	Status       int8           `gorm:"type:tinyint;default:1;comment:1-正常 0-封禁 -1-未激活" json:"status"`
 	LastLoginIP  string         `gorm:"type:varchar(64)" json:"last_login_ip"`
 	CreatedAt    time.Time      `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt    time.Time      `gorm:"autoUpdateTime" json:"updated_at"`
-	DeletedAt    gorm.DeletedAt `gorm:"index" json:"-"` // 软删除，满足合规与审计要求
+	IsDelete     int8           `gorm:"type:tinyint;default:0;comment:0-未删除 1-删除" json:"is_delete"`
+	DeletedAt    gorm.DeletedAt `gorm:"index" json:"-"` // 软删除时间戳，满足合规与审计要求
 
 	// 关联定义
 	KOLProfile   *KOLProfile   `gorm:"foreignKey:UserID" json:"kol_profile,omitempty"`
@@ -56,7 +57,7 @@ type BrandProfile struct {
 type UserUGCAccount struct {
 	ID          uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
 	UserID      uint64    `gorm:"index;not null" json:"user_id"`
-	Platform    string    `gorm:"type:varchar(32);not null;comment:平台名(douyin, bilibili, xiaohongshu)" json:"platform"`
+	Platform    string    `gorm:"type:varchar(32);not null;comment:平台名(douyin, bilibili, Tiktok)" json:"platform"`
 	PlatformUID string    `gorm:"type:varchar(128);not null;comment:第三方平台的唯一UID" json:"platform_uid"`
 	Nickname    string    `gorm:"type:varchar(64)" json:"nickname"`
 	AuthToken   string    `gorm:"type:varchar(512);comment:用于合规爬虫或API的授权Token(需加密存储)" json:"-"`

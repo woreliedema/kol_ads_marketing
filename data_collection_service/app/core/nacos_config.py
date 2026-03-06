@@ -18,11 +18,11 @@ class NacosRegistry:
         self.namespace_id = os.getenv("NACOS_NAMESPACE", "public")
         self.service_name = os.getenv("SERVICE_NAME", "data-collection-service")
 
-        self.ip = os.getenv("SERVICE_IP", "127.0.0.1")
-        self.port = int(os.getenv("SERVICE_PORT", 8000))
+        self.ip = os.getenv("DATA_COLLECTION_IP", "127.0.0.1")
+        self.port = int(os.getenv("DATA_COLLECTION_PORT", 8000))
 
-        self.group_name = "DEFAULT_GROUP"
-        self.cluster_name = "DEFAULT"
+        self.group_name = os.getenv("NACOS_GROUP", "DEFAULT_GROUP")
+        self.cluster_name = os.getenv("NACOS_CLUSTER", "DEFAULT")
 
     async def register(self):
         """注册服务到 Nacos"""

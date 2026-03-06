@@ -7,7 +7,7 @@ from data_collection_service.crawlers.utils.logger import logger
 load_dotenv()
 
 # 从环境变量中读取 MySQL 连接配置，提供本地测试的默认值
-MYSQL_URL = os.getenv("MYSQL_URL")
+MYSQL_URL = os.getenv("MYSQL_URL_PYTHON")
 
 try:
     # pool_pre_ping=True: 每次从连接池获取连接时都会 ping 一下数据库，防止 MySQL 隔夜断开导致 2006 错误
