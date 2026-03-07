@@ -1,0 +1,268 @@
+basePath: /
+definitions:
+  handlers.BindUGCAccountReq:
+    properties:
+      auth_token:
+        description: |-
+          MVP 阶段允许传入的AuthToken，通过代码在本地读取Redis中的cookie替代
+          AuthToken   string `json:"auth_token" vd:"required;msg:'授权 Token 不能为空'"`
+        type: string
+      nickname:
+        type: string
+      platform:
+        type: string
+      platform_uid:
+        type: string
+    type: object
+  handlers.LoginReq:
+    properties:
+      client_type:
+        type: string
+      password:
+        type: string
+      username:
+        type: string
+    type: object
+  handlers.RegisterReq:
+    properties:
+      password:
+        type: string
+      role:
+        $ref: '#/definitions/models.RoleType'
+      username:
+        type: string
+    type: object
+  handlers.ResetPasswordReq:
+    properties:
+      new_password:
+        type: string
+      old_password:
+        type: string
+    type: object
+  handlers.UpdateBrandProfileReq:
+    properties:
+      avatar_url:
+        type: string
+      company_name:
+        type: string
+      industry:
+        type: string
+    type: object
+  handlers.UpdateKOLProfileReq:
+    properties:
+      avatar_url:
+        type: string
+      base_quote:
+        description: 基础报价
+        type: integer
+      real_name:
+        type: string
+      tags:
+        description: JSON字符串，如 "[\"游戏\",\"主播\",\"知识\"]"
+        type: string
+    type: object
+  models.RoleType:
+    enum:
+    - 1
+    - 2
+    - 99
+    type: integer
+    x-enum-varnames:
+    - RoleKOL
+    - RoleBrand
+    - RoleAdmin
+host: localhost:8081
+info:
+  contact: {}
+  description: User Center Microservice API Docs.
+  title: KOL 营销平台用户中心 API
+  version: "1.0"
+paths:
+  /api/internal/v1/user/{id}/profile:
+    get:
+      description: 无需 Token，供报价引擎或匹配系统通过 user_id 直接查询。
+      parameters:
+      - description: 用户 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功返回用户信息
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 内部调用：查询用户详情
+      tags:
+      - Internal
+  /api/v1/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: 验证账号密码并返回 Opaque Token
+      parameters:
+      - description: 登录参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.LoginReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":0,"message":"success","data":{...}}'
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 用户登录
+      tags:
+      - Auth
+  /api/v1/auth/register:
+    post:
+      consumes:
+      - application/json
+      description: 注册红人(role:1)或品牌方(role:2)账号
+      parameters:
+      - description: 注册参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.RegisterReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":0,"message":"success","data":{"message":"注册成功，请登录"}}'
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 用户注册
+      tags:
+      - Auth
+  /api/v1/user/brand/profile:
+    put:
+      consumes:
+      - application/json
+      description: 仅限品牌方(role=2) 调用。修改公司名、所属行业等参数。
+      parameters:
+      - description: 品牌方资料参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.UpdateBrandProfileReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功提示
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: 修改品牌方扩展资料
+      tags:
+      - User
+  /api/v1/user/info:
+    get:
+      description: 根据当前 Token 获取用户的基本信息及对应角色的扩展资料（KOL或品牌方）
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功返回用户信息
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: 获取账号详细信息
+      tags:
+      - User
+  /api/v1/user/kol/profile:
+    put:
+      consumes:
+      - application/json
+      description: 仅限 KOL(role=1) 调用。修改昵称、标签、底价等参数。
+      parameters:
+      - description: KOL 资料参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.UpdateKOLProfileReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功提示
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: 修改 KOL 扩展资料
+      tags:
+      - User
+  /api/v1/user/password/reset:
+    post:
+      consumes:
+      - application/json
+      description: 验证旧密码并设置新密码。成功后将强制清除该用户在所有设备上的登录状态（全端踢下线）。
+      parameters:
+      - description: 修改密码参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.ResetPasswordReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":0,"message":"success","data":{"message":"密码修改成功，请重新登录"}}'
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: 修改登录密码
+      tags:
+      - Auth
+  /api/v1/user/ugc/bind:
+    post:
+      consumes:
+      - application/json
+      description: 绑定 B站/抖音/小红书 账号。支持 MVP 阶段不传 auth_token 自动从 Redis 读取。
+      parameters:
+      - description: 绑定参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.BindUGCAccountReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功返回绑定的平台和UID
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - "ApiKeyAuth   <-- \U0001F680 核心：告诉 Swagger 这个接口右上角需要一把小锁！": []
+      summary: 绑定第三方 UGC 账号 (受保护)
+      tags:
+      - UGC
+securityDefinitions:
+  ApiKeyAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

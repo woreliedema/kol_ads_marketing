@@ -57,10 +57,10 @@ type BrandProfile struct {
 type UserUGCAccount struct {
 	ID          uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
 	UserID      uint64    `gorm:"index;not null" json:"user_id"`
-	Platform    string    `gorm:"type:varchar(32);not null;comment:平台名(douyin, bilibili, Tiktok)" json:"platform"`
+	Platform    string    `gorm:"type:varchar(32);not null;comment:平台名(douyin, bilibili, tiktok)" json:"platform"`
 	PlatformUID string    `gorm:"type:varchar(128);not null;comment:第三方平台的唯一UID" json:"platform_uid"`
 	Nickname    string    `gorm:"type:varchar(64)" json:"nickname"`
-	AuthToken   string    `gorm:"type:varchar(512);comment:用于合规爬虫或API的授权Token(需加密存储)" json:"-"`
+	AuthToken   string    `gorm:"type:text;comment:用于合规爬虫或API的授权Token(需加密存储)" json:"-"`
 	FansCount   int64     `gorm:"type:int;default:0;comment:冗余字段，方便快速查询" json:"fans_count"`
 	BoundAt     time.Time `gorm:"autoCreateTime" json:"bound_at"`
 

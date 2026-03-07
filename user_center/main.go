@@ -6,19 +6,31 @@ import (
 	"strconv"
 	"time"
 
-	"kol_ads_marketing/user_center/app/api/handlers"
-	"kol_ads_marketing/user_center/app/api/middleware"
-	"kol_ads_marketing/user_center/app/api/response"
+	"kol_ads_marketing/user_center/app/api"
+	//"kol_ads_marketing/user_center/app/api/handlers"
+	//"kol_ads_marketing/user_center/app/api/middleware"
+	//"kol_ads_marketing/user_center/app/api/response"
 	"kol_ads_marketing/user_center/app/core"
 	"kol_ads_marketing/user_center/app/db"
 	"kol_ads_marketing/user_center/app/utils/logger"
+	_ "kol_ads_marketing/user_center/docs"
 
-	"github.com/cloudwego/hertz/pkg/app"
+	//"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/app/server"
 	"github.com/cloudwego/hertz/pkg/common/hlog"
+	//"github.com/hertz-contrib/swagger"
 	"github.com/joho/godotenv"
+	//swaggerFiles "github.com/swaggo/files"
 )
 
+// @title KOL 营销平台用户中心 API
+// @version 1.0
+// @description User Center Microservice API Docs.
+// @host localhost:8081
+// @BasePath /
+// @securityDefinitions.apikey ApiKeyAuth
+// @in header
+// @name Authorization
 func main() {
 	// 0. 加载环境变量 (Load Environment Variables)
 	// 注意：因为我们在项目根目录运行，所以这里的路径直接写 ".env" 即可。
@@ -120,39 +132,9 @@ func main() {
 	})
 
 	// 4. 路由注册
-	h.GET("/ping", func(c context.Context, ctx *app.RequestContext) {
-		hlog.CtxInfof(c, "收到来自 %s 的 Ping 请求", ctx.ClientIP())
-		response.Success(ctx, map[string]interface{}{
-			"service":   "kol_user_center",
-			"status":    "running",
-			"timestamp": time.Now().Unix(),
-		})
-	})
+	api.RegisterRoutes(h)
 
-	// 5. 认证相关路由组
-	authGroup := h.Group("/api/v1/auth")
-	{
-		authGroup.POST("/register", handlers.Register)
-		authGroup.POST("/login", handlers.Login)
-	}
-
-	protectedGroup := h.Group("/api/v1/user", middleware.AuthMiddleware())
-	{
-		// 测试接口：获取当前登录用户的简要信息
-		protectedGroup.GET("/me", func(c context.Context, ctx *app.RequestContext) {
-			// 直接从上下文中取出中间件塞进来的 user_id 和 role
-			userID, _ := ctx.Get("user_id")
-			role, _ := ctx.Get("role")
-
-			response.Success(ctx, map[string]interface{}{
-				"message": "恭喜！你成功通过了防线！",
-				"user_id": userID,
-				"role":    role,
-			})
-		})
-	}
-
-	// 6. 启动服务
+	// 5. 启动服务
 	hlog.Infof("🚀 User Center 微服务正在启动，监听端口: %s...", serverPort)
 	h.Spin()
 }
