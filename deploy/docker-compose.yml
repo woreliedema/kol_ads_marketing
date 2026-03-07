@@ -17,16 +17,43 @@ services:
       # 数据库连接信息 (根据您的 settings 修改)
       - MYSQL_HOST=mysql
       - CLICKHOUSE_HOST=clickhouse
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - DATA_COLLECTION_IP=data_collection_service
     depends_on:
       - redis
       - mysql
       - clickhouse
       - nacos
+      - kafka
     volumes:
       # 挂载代码目录，方便调试（可选）
       - ../data_collection_service:/app/data_collection_service
       # 挂载日志目录
       - ./logs:/app/logs
+  user_center:
+    build:
+      context: ../user_center
+      dockerfile: Dockerfile
+    container_name: kol_user_center
+    restart: always
+    ports:
+      - "8081:8081"
+    environment:
+      # 1. 替换基础组件地址为容器名
+      - MYSQL_HOST=mysql
+      - REDIS_HOST=redis
+      - NACOS_HOST=nacos
+      # 2. 匹配你代码里读取的数据库变量名
+      - MYSQL_UC_DBNAME=kol_user_center
+      # 3. 让 Go 服务向 Nacos 注册自己的容器名，而不是 127.0.0.1
+      - USER_CENTER_IP=kol_user_center
+      - USER_CENTER_NAME=user-center-service
+      # 4. 强制复用 .env 里的密码配置 (可以通过 docker-compose 的变量插值传递)
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+    depends_on:
+      - mysql
+      - redis
+      - nacos
   # 关系型数据库：存储核心结构化数据
   mysql:
     image: mysql:8.0
@@ -104,11 +131,16 @@ services:
     ports:
       - "9092:9092"
     environment:
-      - KAFKA_ZOOKEEPER_CONNECT=zookeeper_3.9.1:2181 # 匹配Zookeeper的容器名（若有修改需对应）
+      - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
+#      - KAFKA_ZOOKEEPER_CONNECT=zookeeper_3.9.1:2181 # 匹配Zookeeper的容器名（若有修改需对应）
 #      - ALLOW_PLAINTEXT_LISTENER=yes
       - KAFKA_BROKER_ID=1
-      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT
-      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092  # 开发环境暴露本地端口
+      # 开启双通道监听
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      - KAFKA_LISTENERS=INTERNAL://0.0.0.0:29092,EXTERNAL://0.0.0.0:9092
+      # 内部微服务用 kafka:29092，外部宿主机用 localhost:9092
+      - KAFKA_ADVERTISED_LISTENERS=INTERNAL://kafka:29092,EXTERNAL://localhost:9092
+      - KAFKA_INTER_BROKER_LISTENER_NAME=INTERNAL
       - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1  # 单机环境副本数设为1
 
   # 服务注册与配置中心：Hertz 微服务体系的核心

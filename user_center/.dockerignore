@@ -1,0 +1,10 @@
+.git
+.idea
+.vscode
+*.md
+tmp/
+*.log
+# 忽略本地编译的产物
+user_center
+*.exe
+.env

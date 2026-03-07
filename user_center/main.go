@@ -71,7 +71,7 @@ func main() {
 		Port:         getEnvInt("MYSQL_PORT", 3306),
 		User:         getEnv("MYSQL_USER", "root"),
 		Password:     getEnv("MYSQL_PASSWORD", ""), // 密码必须从环境读取
-		DBName:       getEnv("MYSQL_DBNAME", "kol_user_center"),
+		DBName:       getEnv("MYSQL_UC_DBNAME", "kol_user_center"),
 		Charset:      "utf8mb4",
 		MaxIdleConns: 10,
 		MaxOpenConns: 100,
