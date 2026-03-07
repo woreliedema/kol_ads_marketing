@@ -14,6 +14,11 @@ const (
 	RoleAdmin RoleType = 99
 )
 
+// 利用 init 函数和空白标识符，在包加载时执行一次“无意义赋值”，消耗掉未使用警告
+func init() {
+	_ = RoleAdmin
+}
+
 // SysUser 核心用户表
 type SysUser struct {
 	ID           uint64         `gorm:"primaryKey;autoIncrement" json:"id"`
