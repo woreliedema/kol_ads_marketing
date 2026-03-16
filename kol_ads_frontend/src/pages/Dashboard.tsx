@@ -1,0 +1,1 @@
+export default function () { return <div>xxx</div> }

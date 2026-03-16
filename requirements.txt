@@ -1,13 +1,15 @@
+asynch
 fastapi
 uvicorn
 pydantic
+dotenv
 starlette
 SQLAlchemy
 pymysql
 clickhouse-driver
 redis
 aiokafka
-httpx
+httpx==0.23.3
 requests
 aiofiles
 bcrypt

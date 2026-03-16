@@ -111,7 +111,7 @@ class BilibiliTaskService:
             logger.warning(f"[Task {batch_id}] 清洗 {bvid} 视频数据为空或接口返回错误，跳过入库")
             return False
 
-        success = self.storage.save_data_to_clickhouse(
+        success = await self.storage.save_data_to_clickhouse(
             table_name="ods.bilibili_video_comments",
             data_list=cleaned_data
         )
@@ -142,7 +142,7 @@ class BilibiliTaskService:
             return False
         # 3. 写入 ClickHouse
         # 注意：table_name 必须与 ClickHouse 的表名一致
-        success = self.storage.save_data_to_clickhouse(
+        success = await self.storage.save_data_to_clickhouse(
             table_name="ods.bilibili_user_info",
             data_list=cleaned_data
         )
@@ -202,11 +202,11 @@ class BilibiliTaskService:
             logger.warning(f"[Task {batch_id}] 视频 {bvid} 无分P数据或解析为空")
         # 3. 写入 ClickHouse
         # 注意: table_name 必须与 ClickHouse 的表名一致
-        success = self.storage.save_data_to_clickhouse(
+        success = await self.storage.save_data_to_clickhouse(
             table_name="ods.bilibili_video_info",
             data_list=cleaned_data
         )
-        pages_info_success = self.storage.save_data_to_clickhouse(
+        pages_info_success = await self.storage.save_data_to_clickhouse(
             table_name="ods.bilibili_video_pages_info",
             data_list=pages_data
         )

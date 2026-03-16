@@ -4,12 +4,11 @@ import asyncio
 import traceback
 from aiokafka import AIOKafkaConsumer
 from dotenv import load_dotenv
-
 # 导入基础组件
 from data_collection_service.crawlers.utils.logger import logger
 from data_collection_service.app.db.session import SessionLocal
 from data_collection_service.app.db.models import CrawlerTask
-from data_collection_service.app.db.clickhouse import get_ch_client
+from data_collection_service.app.db.clickhouse import ClickHouseManager
 
 # 导入业务服务层
 from data_collection_service.crawlers.bilibili.web_crawler import BilibiliWebCrawler
@@ -97,44 +96,45 @@ class KafkaConsumerManager:
             # 状态机步骤 2: 装配组件并循环执行核心链路
             success_count = 0
             if platform_type == 3:  # 平台：B站
-                # 获取 ClickHouse 单例客户端
-                ch_client = get_ch_client()
-                # IoC: 注入依赖
-                storage = StorageService(ch_client=ch_client)
-                crawler_instance = BilibiliWebCrawler()
-                task_service = BilibiliTaskService(crawler=crawler_instance, storage=storage)
+                # 从异步全局连接池中安全“借用”一个连接
+                # 这样写保证了这批任务执行完毕后，连接会自动归还给连接池
+                async with ClickHouseManager.pool.connection() as ch_client:
+                    # 注入依赖 (传入异步连接)
+                    storage = StorageService(ch_client=ch_client)
+                    crawler_instance = BilibiliWebCrawler()
+                    task_service = BilibiliTaskService(crawler=crawler_instance, storage=storage)
 
-                # 🌟 核心架构升级：动态路由映射表 (Action Map)
-                bilibili_action_map = {
-                    "scrape_and_store_video_comments": task_service.collect_and_store_video_comments,
-                    "scrape_and_store_user_info": task_service.collect_and_store_user_info,
-                    "scrape_and_store_user_relation": task_service.collect_and_store_user_relation,
-                    "scrape_and_store_video_info": task_service.collect_and_store_video_info
-                }
-                # 获取对应的处理函数
-                action_handler = bilibili_action_map.get(resource_type)
+                    # 动态路由映射表 (Action Map)
+                    bilibili_action_map = {
+                        "scrape_and_store_video_comments": task_service.collect_and_store_video_comments,
+                        "scrape_and_store_user_info": task_service.collect_and_store_user_info,
+                        "scrape_and_store_user_relation": task_service.collect_and_store_user_relation,
+                        "scrape_and_store_video_info": task_service.collect_and_store_video_info
+                    }
+                    # 获取对应的处理函数
+                    action_handler = bilibili_action_map.get(resource_type)
 
-                if not action_handler:
-                    # 如果传了一个未知的 resource_type，直接报错退出
-                    raise ValueError(f"未知的 resource_type: {resource_type}，无法匹配底层处理函数")
+                    if not action_handler:
+                        # 如果传了一个未知的 resource_type，直接报错退出
+                        raise ValueError(f"未知的 resource_type: {resource_type}，无法匹配底层处理函数")
 
-                # 遍历处理目标
-                for target_id in target_ids:
-                    try:
-                        logger.info(f"⏳ [Task:{task_id}] 动态执行动作 [{resource_type}], 目标ID: {target_id}...")
+                    # 遍历处理目标
+                    for target_id in target_ids:
+                        try:
+                            logger.info(f"⏳ [Task:{task_id}] 动态执行动作 [{resource_type}], 目标ID: {target_id}...")
 
-                        # 动态调用：不论是评论还是画像，因为入参形式统一，直接调用 action_handler 即可！
-                        is_ok = await action_handler(target_id, task_id)
-                        if is_ok:
-                            success_count += 1
-                        else:
-                            logger.warning(f"⚠️ [Task:{task_id}] 目标 {target_id} 业务层返回采集失败。")
-                        # 强制加入休眠，防止触发高频封控
-                        await asyncio.sleep(1.5)
+                            # 动态调用：不论是评论还是画像，因为入参形式统一，直接调用 action_handler 即可！
+                            is_ok = await action_handler(target_id, task_id)
+                            if is_ok:
+                                success_count += 1
+                            else:
+                                logger.warning(f"⚠️ [Task:{task_id}] 目标 {target_id} 业务层返回采集失败。")
+                            # 强制加入休眠，防止触发高频封控
+                            await asyncio.sleep(1.5)
 
-                    except Exception as loop_e:
-                        logger.error(f"❌ [Task:{task_id}] 抓取目标 {target_id} 时发生异常: {str(loop_e)}")
-                        continue
+                        except Exception as loop_e:
+                            logger.error(f"❌ [Task:{task_id}] 抓取目标 {target_id} 时发生异常: {str(loop_e)}")
+                            continue
 
             elif platform_type == 1:  # 预留：抖音平台
                 pass

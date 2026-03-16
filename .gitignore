@@ -6,7 +6,19 @@ __pycache__/
 *.pyc
 .env
 venv/
+node_modules/
+dist/
+build/
 
+# ========== 日志文件 ==========
 logs/
 **/logs/
 *.log
+
+# ========== 图片文件 ==========
+*.jpg
+*.jpeg
+*.png
+*.JPG
+*.JPEG
+*.PNG

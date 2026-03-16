@@ -2,11 +2,11 @@ import asyncio  # 异步I/O
 import os  # 系统操作
 import time  # 时间操作
 import yaml  # 配置文件
-import redis.asyncio as redis
 
 # 基础爬虫客户端和哔哩哔哩API端点
 from data_collection_service.crawlers.base_crawler import BaseCrawler
 from data_collection_service.crawlers.bilibili.endpoints import BilibiliAPIEndpoints
+from data_collection_service.app.db.redis_client import redis_client_mgr
 # 哔哩哔哩工具类
 from data_collection_service.crawlers.bilibili.utils import EndpointGenerator, bv2av, ResponseAnalyzer
 # 数据请求模型
@@ -22,23 +22,21 @@ with open(f"{path}/config.yaml", "r", encoding="utf-8") as f:
 
 class BilibiliWebCrawler:
     def __init__(self):
-        # 初始化 Redis 连接
-        # 注意：如果在 Docker 内部运行，host 应该是 'redis' (docker-compose 中的服务名)
-        # 如果是本地调试，host 应该是 'localhost'
-        # 我们可以通过环境变量来自动切换
-        self.redis_host = os.getenv("REDIS_HOST", "127.0.0.1")
-        self.redis_port = int(os.getenv("REDIS_PORT", 6379))
-        # 创建连接池
-        self.redis = redis.Redis(
-            host=self.redis_host,
-            port=self.redis_port,
-            db=0,
-            decode_responses=True  # 自动解码为字符串，方便直接使用
-        )
+        pass
+
+    @property
+    def redis(self):
+        """
+        通过 @property 动态拦截对 self.redis 的访问。
+        每次访问 self.redis 时，都会实时去 manager 中取最新的 pool。
+        """
+        if not redis_client_mgr.pool:
+            raise RuntimeError("Redis 连接池尚未初始化！")
+        return redis_client_mgr.pool
+
     # 优先从Redis获取cookie，如无法获取再从配置文件读取哔哩哔哩请求头
     async def get_bilibili_headers(self):
         bili_config = config['TokenManager']['bilibili']
-
         # 1. 尝试从 Redis 获取最新的 Cookie
         try:
             redis_cookie = await self.redis.get("cookie:bilibili")
@@ -349,21 +347,6 @@ class BilibiliWebCrawler:
 
         except Exception as e:
             print(f"❌ 更新 Cookie 到 Redis 失败: {e}")
-        # global config
-        # service = "bilibili"
-        # # 测试输出用
-        # print('BilibiliWebCrawler before update', config["TokenManager"][service]["headers"]["cookie"])
-        # print('BilibiliWebCrawler to update', cookie)
-        #
-        # # 1. 更新内存中的配置（立即生效）
-        # config["TokenManager"][service]["headers"]["cookie"] = cookie
-        # # 测试输出用
-        # print('BilibiliWebCrawler cookie updated', config["TokenManager"][service]["headers"]["cookie"])
-        #
-        # # 2. 写入配置文件（持久化）
-        # config_path = f"{path}/config.yaml"
-        # with open(config_path, 'w', encoding='utf-8') as file:
-        #     yaml.dump(config, file, default_flow_style=False, allow_unicode=True, indent=2)
 
     "-------------------------------------------------------utils接口列表-------------------------------------------------------"
 
@@ -397,16 +380,3 @@ class BilibiliWebCrawler:
             # 发送请求，获取请求响应结果
             response = await crawler.fetch_get_json(endpoint)
         return response
-
-if __name__ == '__main__':
-    # 初始化
-    BilibiliWebCrawler = BilibiliWebCrawler()
-
-    # 开始时间
-    start = time.time()
-
-    asyncio.run(BilibiliWebCrawler.main())
-
-    # 结束时间
-    end = time.time()
-    print(f"耗时：{end - start}")

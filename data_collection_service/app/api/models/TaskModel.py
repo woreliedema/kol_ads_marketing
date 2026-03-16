@@ -12,3 +12,8 @@ class TaskCreateRequest(BaseModel):
     resource_ids: List[str] = Field(..., description="目标ID数组，例如 ['BV1xx', 'BV2xx'] 或 ['178360345']")
 
     params: Optional[dict] = Field(default_factory=dict, description="附加参数", json_schema_extra={"example": {}})
+
+class UserProfileBindRequest(BaseModel):
+    sys_uid: str = Field(..., description="系统内部用户UID")
+    platform: str = Field(..., description="平台名称英文标识 (如: bilibili, douyin, tiktok)")
+    profile_url: str = Field(..., description="用户填写的第三方平台主页链接")

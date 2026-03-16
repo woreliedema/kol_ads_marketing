@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+@config "../tailwind.config.js";
+
+/* 全局极客风基础设定 */
+@layer base {
+    body {
+        /* 默认使用暗夜蓝背景，等宽字体，消除浏览器默认的内外边距 */
+        @apply m-0 bg-slate-950 text-slate-300 font-mono antialiased;
+    }
+
+    /* 自定义滚动条，使其更符合极客/终端的视觉体验 */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+        @apply bg-slate-900;
+    }
+    ::-webkit-scrollbar-thumb {
+        @apply bg-cyan-600/50 rounded;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        @apply bg-cyan-500;
+    }
+}

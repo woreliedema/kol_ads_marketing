@@ -1,15 +1,14 @@
-import logging
-from clickhouse_driver import Client
+from asynch.connection import Connection
+from asynch.cursors import DictCursor
 
 from data_collection_service.app.api.models.QueryModel import OperatorEnum,ComplexSearchRequest
-
-logger = logging.getLogger(__name__)
+from data_collection_service.crawlers.utils.logger import logger
 
 class StorageService:
-    def __init__(self, ch_client: Client):
+    def __init__(self, ch_client: Connection):
         self.ch = ch_client
 
-    def save_data_to_clickhouse(self, table_name: str, data_list: list[dict]) -> bool:
+    async def save_data_to_clickhouse(self, table_name: str, data_list: list[dict]) -> bool:
         """
         通用化 ClickHouse 批量写入方法
         利用 clickhouse-driver 的字典插入特性，只要字典 key 和列名一致即可自动映射
@@ -26,14 +25,15 @@ class StorageService:
 
             query = f"INSERT INTO {table_name}({columns}) VALUES"
 
-            self.ch.execute(query, data_list)
+            async with self.ch.cursor() as cursor:
+                await cursor.execute(query, data_list)
             logger.info(f"[ClickHouse] 成功批量写入 {len(data_list)} 条数据到 {table_name}")
             return True
         except Exception as e:
             logger.error(f"[ClickHouse] 写入 {table_name} 失败: {str(e)}", exc_info=True)
             return False
 
-    def search_data_from_clickhouse(self, table_name: str, query_req: ComplexSearchRequest) -> dict:
+    async def search_data_from_clickhouse(self, table_name: str, query_req: ComplexSearchRequest) -> dict:
         """
         通用复杂查询接口
         """
@@ -100,12 +100,18 @@ class StorageService:
             count_sql = f"SELECT count(*) FROM {table_name} {where_sql}"
 
             # 执行
-            data_result, col_types = self.ch.execute(sql, params, with_column_types=True)
-            total_count = self.ch.execute(count_sql, params)[0][0]
+            # data_result, col_types = self.ch.execute(sql, params, with_column_types=True)
+            async with self.ch.cursor(cursor=DictCursor) as cursor:
+                await cursor.execute(sql, params)
+                items = await cursor.fetchall()
+            async with self.ch.cursor() as cursor:
+                await cursor.execute(count_sql, params)
+                count_result = await cursor.fetchone()
+                total_count = count_result[0] if count_result else 0
 
             # 格式化结果
-            columns = [col[0] for col in col_types]
-            items = [dict(zip(columns, row)) for row in data_result]
+            # columns = [col[0] for col in col_types]
+            # items = [dict(zip(columns, row)) for row in data_result]
 
             return {
                 "total": total_count,

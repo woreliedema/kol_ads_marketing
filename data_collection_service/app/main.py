@@ -12,6 +12,9 @@ from data_collection_service.app.db.clickhouse import ClickHouseManager
 from data_collection_service.crawlers.utils.logger import logger
 from data_collection_service.app.services.kafka_service import kafka_producer
 from data_collection_service.app.services.kafka_consumer import kafka_consumer
+from data_collection_service.app.services.scheduler_service import scheduler_daemon
+from data_collection_service.app.db.redis_client import redis_client_mgr
+
 # 1. Nacos 连接配置
 # (为了代码健壮性，这里使用 os.getenv 并结合本地 .env 文件读取环境变量，赋予默认值以匹配本地开发)
 load_dotenv()
@@ -35,7 +38,7 @@ async def lifespan(app: FastAPI):
         ch_user = os.getenv("CLICKHOUSE_USER", "default")
         ch_password = os.getenv("CLICKHOUSE_PASSWORD", "")
 
-        ClickHouseManager.init_db(
+        await ClickHouseManager.init_db(
             host=ch_host,
             port=ch_port,
             user=ch_user,
@@ -43,6 +46,8 @@ async def lifespan(app: FastAPI):
             database="ods"  # or: os.getenv("CLICKHOUSE_DB", "ods")
         )
         logger.info("[Init] ClickHouse 数据库连接初始化成功。")
+        # 初始化 Redis 异步连接池 (支撑高并发热缓存)
+        await redis_client_mgr.init_pool()
 
         # 步骤 2: 启动 Kafka 生产者
         await kafka_producer.start()
@@ -50,6 +55,8 @@ async def lifespan(app: FastAPI):
         # 步骤 2: 启动 Kafka 消费
         await kafka_consumer.start()
         logger.info("[Init] Kafka 消费者后台守护进程启动成功。")
+
+        await scheduler_daemon.start()
 
         # 步骤 3: 注册到 Nacos 注册中心 (服务就绪，开始接收流量)
         await nacos_registry.register()
@@ -94,10 +101,16 @@ async def lifespan(app: FastAPI):
 
         # 步骤 4: 断开 ClickHouse 等底层数据库连接
         try:
-            ClickHouseManager.close_db()
+            await ClickHouseManager.close_db()
             logger.info("[Cleanup] ClickHouse 数据库连接已安全关闭。")
         except Exception as e:
             logger.error(f"[Cleanup] ClickHouse 关闭异常: {str(e)}")
+
+        try:
+            await redis_client_mgr.close_pool()
+            logger.info("[Cleanup] Redis 热缓存连接池已安全关闭。")
+        except Exception as e:
+            logger.error(f"[Cleanup] Redis 关闭异常: {str(e)}")
 
         logger.info("👋 ================== 数据采集服务已安全退出 ================== 👋")
 

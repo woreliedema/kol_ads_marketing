@@ -9,6 +9,11 @@
     "host": "localhost:8081",
     "basePath": "/",
     "paths": {
+        "/api/internal/v1/user/ugc/callback": {
+            "post": {
+                "responses": {}
+            }
+        },
         "/api/internal/v1/user/{id}/profile": {
             "get": {
                 "description": "无需 Token，供报价引擎或匹配系统通过 user_id 直接查询。",
@@ -101,6 +106,122 @@
                 "responses": {
                     "200": {
                         "description": "{\"code\":0,\"message\":\"success\",\"data\":{\"message\":\"注册成功，请登录\"}}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/user/avatar/upload": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "上传图片文件，自动根据当前 Token 身份更新红人或品牌方的头像。每人每 7 天只能修改一次。",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "User"
+                ],
+                "summary": "上传用户头像 (7天冷却)",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "头像图片文件 (最大 5MB, 仅支持 jpg/png)",
+                        "name": "avatar",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功返回新的头像 URL",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/user/brand/license/delete": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "验证登录密码后，物理删除服务器上的资质文件并清空记录。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "User"
+                ],
+                "summary": "销毁营业执照 (仅限品牌方)",
+                "parameters": [
+                    {
+                        "description": "密码校验参数",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.DeleteLicenseReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功提示",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/user/brand/license/upload": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "品牌方角色专属。上传营业执照图片，大小不超过 10MB。",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "User"
+                ],
+                "summary": "上传营业执照 (仅限品牌方)",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "营业执照图片 (最大 10MB, 仅支持 jpg/png)",
+                        "name": "license",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功返回新的资质 URL",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -259,7 +380,7 @@
             "post": {
                 "security": [
                     {
-                        "ApiKeyAuth   \u003c-- 🚀 核心：告诉 Swagger 这个接口右上角需要一把小锁！": []
+                        "ApiKeyAuth": []
                     }
                 ],
                 "description": "绑定 B站/抖音/小红书 账号。支持 MVP 阶段不传 auth_token 自动从 Redis 读取。",
@@ -294,23 +415,48 @@
                     }
                 }
             }
+        },
+        "/api/v1/user/ugc/bind/result": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "tags": [
+                    "UGC"
+                ],
+                "summary": "手动/自动同步 UGC 最新数据",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "平台名称 (如 bilibili)",
+                        "name": "platform",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            }
         }
     },
     "definitions": {
         "handlers.BindUGCAccountReq": {
             "type": "object",
             "properties": {
-                "auth_token": {
-                    "description": "MVP 阶段允许传入的AuthToken，通过代码在本地读取Redis中的cookie替代\nAuthToken   string `json:\"auth_token\" vd:\"required;msg:'授权 Token 不能为空'\"`",
-                    "type": "string"
-                },
-                "nickname": {
-                    "type": "string"
-                },
                 "platform": {
                     "type": "string"
                 },
-                "platform_uid": {
+                "platform_space_url": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.DeleteLicenseReq": {
+            "type": "object",
+            "properties": {
+                "password": {
+                    "description": "加上 vd 标签，防范前端传空字符串",
                     "type": "string"
                 }
             }
@@ -318,11 +464,18 @@
         "handlers.LoginReq": {
             "type": "object",
             "properties": {
+                "account": {
+                    "type": "string"
+                },
                 "client_type": {
                     "type": "string"
                 },
                 "password": {
                     "type": "string"
+                },
+                "role": {
+                    "description": "新增：前端需要告诉后端，用户是从哪个角色的专属页面发起的登录",
+                    "type": "integer"
                 },
                 "username": {
                     "type": "string"
@@ -332,7 +485,14 @@
         "handlers.RegisterReq": {
             "type": "object",
             "properties": {
+                "email": {
+                    "type": "string"
+                },
                 "password": {
+                    "type": "string"
+                },
+                "phone": {
+                    "description": "手机号和邮箱字段 (可选加入正则校验)",
                     "type": "string"
                 },
                 "role": {
@@ -357,9 +517,6 @@
         "handlers.UpdateBrandProfileReq": {
             "type": "object",
             "properties": {
-                "avatar_url": {
-                    "type": "string"
-                },
                 "company_name": {
                     "type": "string"
                 },
@@ -371,9 +528,6 @@
         "handlers.UpdateKOLProfileReq": {
             "type": "object",
             "properties": {
-                "avatar_url": {
-                    "type": "string"
-                },
                 "base_quote": {
                     "description": "基础报价",
                     "type": "integer"

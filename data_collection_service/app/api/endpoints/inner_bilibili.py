@@ -1,9 +1,8 @@
 from fastapi import APIRouter, Query, Request, HTTPException, Depends
-from clickhouse_driver import Client
-
+from asynch.connection import Connection
 # 导入项目中定义的标准响应模型
 from data_collection_service.app.api.models.APIResponseModel import ResponseModel, ErrorResponseModel
-# 导入数据库会话依赖 (假设路径如下，负责 yield ch_client)
+# 导入数据库会话依赖 (路径如下，负责 yield ch_client)
 from data_collection_service.app.db.clickhouse import get_ch_client
 # 导入重构后的服务层
 from data_collection_service.app.services.query_service import QueryService
@@ -15,14 +14,14 @@ router = APIRouter()
 async def inner_fetch_kol_data(
         request: Request,
         user_id: str = Query(..., examples=["2687303"], description="B站用户UID"),
-        ch_client: Client = Depends(get_ch_client)
+        ch_client: Connection = Depends(get_ch_client)
 ):
     try:
         # 依赖注入：初始化 Service
         data_service = QueryService(ch_client=ch_client)
 
         # 调用核心业务逻辑
-        data = data_service.get_kol_base_data(user_id)
+        data = await data_service.get_kol_base_data(user_id)
 
         if not data:
             return ResponseModel(
@@ -50,11 +49,11 @@ async def inner_fetch_kol_data(
 async def inner_fetch_video_data(
         request: Request,
         video_id: str = Query(..., examples=["BV1SEBxBSE8Q"], description="作品BV号"),
-        ch_client: Client = Depends(get_ch_client)
+        ch_client: Connection = Depends(get_ch_client)
 ):
     try:
         data_service = QueryService(ch_client=ch_client)
-        data = data_service.get_video_metrics_data(video_id)
+        data = await data_service.get_video_metrics_data(video_id)
 
         if not data:
             return ResponseModel(

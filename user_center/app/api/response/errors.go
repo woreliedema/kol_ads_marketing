@@ -23,11 +23,14 @@ func (e *APIError) Error() string {
 var (
 	// 400 参数校验与客户端类错误
 	ErrInvalidParams = &APIError{HTTPCode: consts.StatusBadRequest, BizCode: 400001, Message: "请求参数错误或格式非法"}
-	ErrMissingHeader = &APIError{HTTPCode: consts.StatusBadRequest, BizCode: 400002, Message: "缺失必要的请求头参数"}
+	//ErrMissingHeader     = &APIError{HTTPCode: consts.StatusBadRequest, BizCode: 400002, Message: "缺失必要的请求头参数"}
+	ErrInvalidPassword   = &APIError{HTTPCode: consts.StatusBadRequest, BizCode: 400003, Message: "账号或密码错误"}
+	ErrUserAlreadyExists = &APIError{HTTPCode: consts.StatusBadRequest, BizCode: 400004, Message: "账号已被注册"}
 
 	// 401/403 认证与权限类错误 (用户中心核心使用)
 	ErrUnauthorized = &APIError{HTTPCode: consts.StatusUnauthorized, BizCode: 401001, Message: "Token无效或已过期，请重新登录"}
 	ErrPermission   = &APIError{HTTPCode: consts.StatusForbidden, BizCode: 403001, Message: "权限不足，拒绝访问"}
+	ErrUserBanned   = &APIError{HTTPCode: consts.StatusForbidden, BizCode: 403002, Message: "该账号已被封禁或未激活"}
 
 	// 404 资源不存在
 	ErrUserNotFound = &APIError{HTTPCode: consts.StatusNotFound, BizCode: 404001, Message: "该账号/用户不存在"}

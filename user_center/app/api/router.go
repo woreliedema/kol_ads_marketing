@@ -25,6 +25,10 @@ func RegisterRoutes(h *server.Hertz) {
 		ctx.JSON(200, utils.H{"message": "pong", "service": "user_center"})
 	})
 
+	// 开启静态文件代理 (模拟 CDN)
+	// 当访问 /uploads/* 时，映射到本地的 ./uploads 目录
+	h.Static("/uploads", "./")
+
 	// 1. 面向前端/用户的公网路由组 (API V1)
 	v1 := h.Group("/api/v1")
 
@@ -39,16 +43,22 @@ func RegisterRoutes(h *server.Hertz) {
 	protectedGroup := v1.Group("/user", middleware.AuthMiddleware())
 	{
 		protectedGroup.POST("/ugc/bind", handlers.BindUGCAccount)
+		protectedGroup.GET("/ugc/bind/result", handlers.GetUGCBind)
 		protectedGroup.POST("/password/reset", handlers.ResetPassword)
+		protectedGroup.POST("/avatar/upload", handlers.UploadAvatar)
 		protectedGroup.GET("/info", handlers.GetUserInfo)
 		protectedGroup.PUT("/kol/profile", handlers.UpdateKOLProfile)
+		protectedGroup.POST("/brand/license/upload", handlers.UploadBusinessLicense)
+		protectedGroup.DELETE("/brand/license", handlers.DeleteBusinessLicense)
 		protectedGroup.PUT("/brand/profile", handlers.UpdateBrandProfile)
 	}
 
 	// 2. 面向内部微服务的 RPC/HTTP 路由组
 	// 无 AuthMiddleware，仅限内网调用
 	internalGroup := h.Group("/api/internal/v1")
+	internalGroup.Use(middleware.InternalAuth())
 	{
 		internalGroup.GET("/user/:id/profile", handlers.GetInternalUserProfile)
+		internalGroup.POST("/user/:id/ugc_bind", handlers.InternalUGCAuthCallback)
 	}
 }

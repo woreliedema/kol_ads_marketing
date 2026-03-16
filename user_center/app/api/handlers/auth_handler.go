@@ -3,17 +3,11 @@ package handlers
 import (
 	"context"
 	"errors"
-	"fmt"
-
-	"kol_ads_marketing/user_center/app/api/response"
-	"kol_ads_marketing/user_center/app/db"
-	"kol_ads_marketing/user_center/app/models"
-	"kol_ads_marketing/user_center/app/utils"
-	"kol_ads_marketing/user_center/app/utils/auth"
-
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/common/hlog"
-	"gorm.io/gorm"
+	"kol_ads_marketing/user_center/app/api/response"
+	"kol_ads_marketing/user_center/app/models"
+	service "kol_ads_marketing/user_center/app/services"
 )
 
 // 数据传输对象 (DTO) 定义
@@ -22,12 +16,18 @@ type RegisterReq struct {
 	Username string          `json:"username" vd:"required,len>4;msg:'用户名必须大于4个字符'"`
 	Password string          `json:"password" vd:"required,len>5;msg:'密码必须大于5个字符'"`
 	Role     models.RoleType `json:"role" vd:"$==1||$==2;msg:'角色只能是1(红人)或2(品牌方)'"`
+	// 手机号和邮箱字段 (可选加入正则校验)
+	Phone string `json:"phone"`
+	Email string `json:"email"`
 }
 
 type LoginReq struct {
 	Username   string `json:"username" vd:"required;msg:'用户名不能为空'"`
+	Account    string `json:"account"  vd:"required;msg:'邮箱/手机号不能为空'"`
 	Password   string `json:"password" vd:"required;msg:'密码不能为空'"`
 	ClientType string `json:"client_type" vd:"$=='pc'||$=='mobile';msg:'客户端类型必须为 pc 或 mobile'"`
+	// 新增：前端需要告诉后端，用户是从哪个角色的专属页面发起的登录
+	Role int `json:"role" vd:"$==1||$==2;msg:'登录角色参数不合法(必须为1或2)'"`
 }
 
 // ResetPasswordReq 密码重置请求参数
@@ -55,54 +55,16 @@ func Register(c context.Context, ctx *app.RequestContext) {
 		return
 	}
 
-	// 1. 检查用户是否已存在
-	var count int64
-	db.DB.Model(&models.SysUser{}).Where("username = ?", req.Username).Count(&count)
-	if count > 0 {
-		response.ErrorWithMsg(ctx, response.ErrInvalidParams, "该用户名已被注册")
-		return
-	}
-
-	// 2. 密码加密 (合规性底线)
-	hashedPassword, err := utils.HashPassword(req.Password)
+	_, err := service.RegisterService(c, req.Username, req.Password, req.Phone, req.Email, req.Role)
 	if err != nil {
-		hlog.CtxErrorf(c, "密码加密失败: %v", err)
-		response.Error(ctx, response.ErrSystemError)
-		return
-	}
-
-	// 3. 构建用户实体，开启数据库事务写入核心表和扩展表
-	err = db.DB.Transaction(func(tx *gorm.DB) error {
-		newUser := models.SysUser{
-			Username:     req.Username,
-			PasswordHash: hashedPassword,
-			Role:         req.Role,
-			Status:       1,
+		// 标准的错误拦截与断言
+		var apiErr *response.APIError
+		if errors.As(err, &apiErr) {
+			response.Error(ctx, apiErr)
+		} else {
+			hlog.CtxErrorf(c, "Register 未知异常: %v", err)
+			response.Error(ctx, response.ErrSystemError)
 		}
-
-		if err := tx.Create(&newUser).Error; err != nil {
-			return err
-		}
-
-		// 根据角色初始化对应的业务空白扩展表
-		if req.Role == models.RoleKOL {
-			if err := tx.Create(&models.KOLProfile{
-				UserID: newUser.ID,
-				Tags:   "[]",
-			}).Error; err != nil {
-				return err
-			}
-		} else if req.Role == models.RoleBrand {
-			if err := tx.Create(&models.BrandProfile{UserID: newUser.ID, CompanyName: "未命名企业"}).Error; err != nil {
-				return err
-			}
-		}
-		return nil
-	})
-
-	if err != nil {
-		hlog.CtxErrorf(c, "数据库事务写入失败: %v", err)
-		response.Error(ctx, response.ErrDatabaseError)
 		return
 	}
 
@@ -124,45 +86,34 @@ func Login(c context.Context, ctx *app.RequestContext) {
 		response.ErrorWithMsg(ctx, response.ErrInvalidParams, err.Error())
 		return
 	}
-
-	// 1. 查询数据库核对账号
-	var user models.SysUser
-	err := db.DB.Where("username = ?", req.Username).First(&user).Error
+	// 1. 业务层互斥校验
+	if req.Username == "" && req.Account == "" {
+		response.ErrorWithMsg(ctx, response.ErrInvalidParams, "请输入用户名或手机号/邮箱")
+		return
+	}
+	// 提取最终用来登录的账号标识
+	loginAccount := req.Account
+	//if req.Username != "" {
+	//	loginAccount = req.Username
+	//}
+	// 直接调用 Service 层！Handler 里再也见不到 SQL 代码了
+	token, user, err := service.LoginService(c, req.Username, loginAccount, req.Password, req.ClientType, req.Role, ctx.ClientIP())
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			response.Error(ctx, response.ErrUserNotFound)
+		// 类型断言 (Type Assertion)
+		// 判断 Service 返回的 err 是不是我们自定义的 *response.APIError
+		var apiErr *response.APIError
+		if errors.As(err, &apiErr) {
+			// 如果是标准的业务错误，直接扔给前端
+			response.Error(ctx, apiErr)
 		} else {
-			response.Error(ctx, response.ErrDatabaseError)
+			// 如果是未知的野生 error (比如空指针、下标越界等)，一律按 500 兜底处理
+			hlog.CtxErrorf(c, "Login 未知异常: %v", err)
+			response.Error(ctx, response.ErrSystemError)
 		}
 		return
 	}
-
-	// 2. 校验账号状态
-	if user.Status != 1 {
-		response.ErrorWithMsg(ctx, response.ErrPermission, "该账号已被封禁或未激活")
-		return
-	}
-
-	// 3. bcrypt 哈希比对
-	if !utils.CheckPasswordHash(req.Password, user.PasswordHash) {
-		response.ErrorWithMsg(ctx, response.ErrInvalidParams, "密码错误")
-		return
-	}
-
-	// 4. 更新最后登录 IP
-	db.DB.Model(&user).Update("last_login_ip", ctx.ClientIP())
-
-	// 5. 调用工具类生成 Token，并执行 Redis 状态同步 (核心状态引擎介入)
-	token, err := auth.GenerateAndSaveToken(c, user.ID, user.Role, req.ClientType)
-	if err != nil {
-		hlog.CtxErrorf(c, "Token 生成失败: %v", err)
-		response.Error(ctx, response.ErrSystemError)
-		return
-	}
-
-	hlog.CtxInfof(c, "用户[%s]在端[%s]登录成功", req.Username, req.ClientType)
-
-	// 6. 返回结果给前端
+	hlog.CtxInfof(c, "用户[%s]在[%s]端登录成功", user.Username, req.ClientType)
+	// 3. 组装数据，成功返回
 	response.Success(ctx, map[string]interface{}{
 		"token":       token,
 		"user_id":     user.ID,
@@ -197,65 +148,17 @@ func ResetPassword(c context.Context, ctx *app.RequestContext) {
 		return
 	}
 
-	// 不能新旧密码一样
-	if req.OldPassword == req.NewPassword {
-		response.ErrorWithMsg(ctx, response.ErrInvalidParams, "新密码不能与旧密码相同")
-		return
-	}
+	err := service.ResetPasswordService(c, userID, req.OldPassword, req.NewPassword)
 
-	// 3. 查库获取当前用户信息
-	var user models.SysUser
-	if err := db.DB.First(&user, userID).Error; err != nil {
-		response.Error(ctx, response.ErrUserNotFound)
-		return
-	}
-
-	// 4. 校验旧密码是否正确
-	if !utils.CheckPasswordHash(req.OldPassword, user.PasswordHash) {
-		response.ErrorWithMsg(ctx, response.ErrInvalidParams, "旧密码错误")
-		return
-	}
-
-	// 5. 对新密码进行 bcrypt 加密
-	hashedPassword, err := utils.HashPassword(req.NewPassword)
 	if err != nil {
-		hlog.CtxErrorf(c, "新密码加密失败: %v", err)
-		response.Error(ctx, response.ErrSystemError)
-		return
-	}
-
-	// 6. 更新数据库中的密码
-	if err := db.DB.Model(&user).Update("password_hash", hashedPassword).Error; err != nil {
-		hlog.CtxErrorf(c, "数据库更新密码失败: %v", err)
-		response.Error(ctx, response.ErrDatabaseError)
-		return
-	}
-
-	// 核心状态引擎：全端踢人逻辑 (强制下线)
-	userHashKey := fmt.Sprintf("auth:user:%d", userID)
-
-	// 7.1 从 Redis 获取该用户在所有端 (pc, mobile) 的当前有效 Token 列表
-	tokensMap, err := db.RDB.HGetAll(c, userHashKey).Result()
-	if err == nil && len(tokensMap) > 0 {
-		// 7.2 开启 Redis 管道批量删除，极致性能
-		pipe := db.RDB.TxPipeline()
-
-		// 遍历抹除所有的正向映射 (让拿着旧 Token 正在请求的人瞬间报 401)
-		for _, token := range tokensMap {
-			tokenKey := fmt.Sprintf("auth:token:%s", token)
-			pipe.Del(c, tokenKey)
-		}
-
-		// 抹除反向映射表本身
-		pipe.Del(c, userHashKey)
-
-		// 执行管道清理操作
-		if _, err := pipe.Exec(c); err != nil {
-			hlog.CtxErrorf(c, "Redis 清除用户 Token 失败: %v", err)
-			// 这里即使 Redis 报错也不阻断返回，因为数据库已经改了，旧 Token 早晚会失效
+		var apiErr *response.APIError
+		if errors.As(err, &apiErr) {
+			response.Error(ctx, apiErr)
 		} else {
-			hlog.CtxInfof(c, "用户 [%d] 密码修改成功，已强制清除 %d 个终端的登录状态", userID, len(tokensMap))
+			hlog.CtxErrorf(c, "ResetPassword 未知异常: %v", err)
+			response.Error(ctx, response.ErrSystemError)
 		}
+		return
 	}
 
 	// 8. 返回成功提示

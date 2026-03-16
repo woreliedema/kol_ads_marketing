@@ -2,15 +2,26 @@ package handlers
 
 import (
 	"context"
+	"errors"
+	"kol_ads_marketing/user_center/app/db"
+	"kol_ads_marketing/user_center/app/models"
 	"strconv"
 
 	"kol_ads_marketing/user_center/app/api/response"
-	"kol_ads_marketing/user_center/app/db"
-	"kol_ads_marketing/user_center/app/models"
+	"kol_ads_marketing/user_center/app/services"
 
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/common/hlog"
 )
+
+type UGCAuthCallbackReq struct {
+	UserID         uint64 `json:"user_id"`
+	Platform       string `json:"platform"`
+	AuthStatus     int8   `json:"auth_status"` // 1 成功, -1 失败
+	PlatformUID    string `json:"platform_uid"`
+	Nickname       string `json:"nickname"`
+	FollowersCount int    `json:"followers_count"`
+}
 
 // GetInternalUserProfile 供内部微服务调用的用户信息查询接口
 // @Summary 内部调用：查询用户详情
@@ -29,34 +40,51 @@ func GetInternalUserProfile(c context.Context, ctx *app.RequestContext) {
 		return
 	}
 
-	// 1. 查询基础表获取角色
-	var user models.SysUser
-	if err := db.DB.Select("id", "username", "role", "status").First(&user, userID).Error; err != nil {
-		response.Error(ctx, response.ErrUserNotFound)
+	responseData, err := service.GetUserProfileService(c, userID)
+
+	if err != nil {
+		// 标准的错误拦截与断言
+		var apiErr *response.APIError
+		if errors.As(err, &apiErr) {
+			response.Error(ctx, apiErr)
+		} else {
+			hlog.CtxErrorf(c, "GetInternalUserProfile 未知异常: %v", err)
+			response.Error(ctx, response.ErrSystemError)
+		}
 		return
 	}
 
-	// 2. 组装返回数据 (与面向前端的 GetUserInfo 类似，但这里不需要从 Token 拿状态)
-	responseData := map[string]interface{}{
-		"base_info": user,
-	}
-
-	// 3. 根据角色拉取对应的扩展资料
-	if user.Role == models.RoleKOL {
-		var profile models.KOLProfile
-		if err := db.DB.Where("user_id = ?", userID).First(&profile).Error; err != nil {
-			hlog.CtxWarnf(c, "[Internal] 找不到 KOL[%d] 的扩展资料", userID)
-		} else {
-			responseData["profile"] = profile
-		}
-	} else if user.Role == models.RoleBrand {
-		var profile models.BrandProfile
-		if err := db.DB.Where("user_id = ?", userID).First(&profile).Error; err != nil {
-			hlog.CtxWarnf(c, "[Internal] 找不到 品牌方[%d] 的扩展资料", userID)
-		} else {
-			responseData["profile"] = profile
-		}
-	}
-
 	response.Success(ctx, responseData)
+}
+
+// InternalUGCAuthCallback 供 Python 数据采集服务回调的内部接口
+// @Router /api/internal/v1/user/ugc/callback [post]
+func InternalUGCAuthCallback(c context.Context, ctx *app.RequestContext) {
+	// 此接口无需用户 Token，但在中间件里应该校验内部的 INTERNAL_SECRET_KEY
+
+	var req UGCAuthCallbackReq
+	if err := ctx.BindAndValidate(&req); err != nil {
+		response.ErrorWithMsg(ctx, response.ErrInvalidParams, err.Error())
+		return
+	}
+
+	// 更新 MySQL 底表，将爬虫抓到的数据回填，并把状态改为 1 (成功)
+	updateData := map[string]interface{}{
+		"auth_status":  req.AuthStatus,
+		"platform_uid": req.PlatformUID,
+		"nickname":     req.Nickname,
+		"fans_count":   req.FollowersCount,
+	}
+
+	err := db.DB.Model(&models.UserUGCAccount{}).
+		Where("user_id = ? AND platform = ?", req.UserID, req.Platform).
+		Updates(updateData).Error
+
+	if err != nil {
+		hlog.CtxErrorf(c, "更新 UGC 回调数据失败: %v", err)
+		response.Error(ctx, response.ErrDatabaseError)
+		return
+	}
+
+	response.Success(ctx, map[string]interface{}{"message": "状态回写成功"})
 }
