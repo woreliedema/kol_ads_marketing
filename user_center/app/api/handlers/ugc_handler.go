@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"kol_ads_marketing/user_center/app/models"
-	service "kol_ads_marketing/user_center/app/services"
+	service "kol_ads_marketing/user_center/app/service"
 	"net/http"
 
 	"github.com/cloudwego/hertz/pkg/app"

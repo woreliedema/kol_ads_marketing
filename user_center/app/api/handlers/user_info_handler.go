@@ -12,7 +12,7 @@ import (
 
 	"kol_ads_marketing/user_center/app/api/response"
 	"kol_ads_marketing/user_center/app/models"
-	"kol_ads_marketing/user_center/app/services"
+	"kol_ads_marketing/user_center/app/service"
 
 	"github.com/cloudwego/hertz/pkg/app"
 )

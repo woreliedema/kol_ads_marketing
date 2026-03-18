@@ -153,8 +153,25 @@ services:
     ports:
       - "8848:8848"
       - "9848:9848" # Hertz/Go 客户端通信所需端口
+  # 搜索引擎：用于匹配系统微服务的红人标签多路召回与向量检索
+  elasticsearch:
+    image: elasticsearch:8.0.0
+    container_name: elasticsearch_8.0
+    restart: always
+    environment:
+      - discovery.type=single-node        # 指定为单节点运行模式，跳过集群引导检查
+      - xpack.security.enabled=false      # 本地开发环境关闭密码鉴权，方便微服务免密调用
+      - xpack.security.http.ssl.enabled=false # 关闭 HTTPS 强制验证
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"  # 限制 JVM 内存占用（ES默认占用较高，限制为512M防止撑爆本地内存）
+    ports:
+      - "9200:9200"  # RESTful API 端口（微服务与ES交互走这个）
+      - "9300:9300"  # 节点间通信端口（虽然单节点但也建议暴露）
+    volumes:
+      # 使用具名卷 es_data 持久化索引数据
+      - es_data:/usr/share/elasticsearch/data
 volumes:
   mysql_data:
   mongo_data:
   clickhouse_data:
+  es_data:
   # redis_data:

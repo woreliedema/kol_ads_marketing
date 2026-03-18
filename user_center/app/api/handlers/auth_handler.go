@@ -7,7 +7,7 @@ import (
 	"github.com/cloudwego/hertz/pkg/common/hlog"
 	"kol_ads_marketing/user_center/app/api/response"
 	"kol_ads_marketing/user_center/app/models"
-	service "kol_ads_marketing/user_center/app/services"
+	service "kol_ads_marketing/user_center/app/service"
 )
 
 // 数据传输对象 (DTO) 定义

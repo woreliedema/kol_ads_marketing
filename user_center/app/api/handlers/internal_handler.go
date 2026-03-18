@@ -8,7 +8,7 @@ import (
 	"strconv"
 
 	"kol_ads_marketing/user_center/app/api/response"
-	"kol_ads_marketing/user_center/app/services"
+	"kol_ads_marketing/user_center/app/service"
 
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/common/hlog"
