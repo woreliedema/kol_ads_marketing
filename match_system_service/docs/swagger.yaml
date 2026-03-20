@@ -1,0 +1,144 @@
+basePath: /
+definitions:
+  model.BaseResponse-any:
+    properties:
+      code:
+        example: 200
+        type: integer
+      data: {}
+      msg:
+        example: success
+        type: string
+    type: object
+  model.BaseResponse-model_SearchKOLsResp:
+    properties:
+      code:
+        example: 200
+        type: integer
+      data:
+        $ref: '#/definitions/model.SearchKOLsResp'
+      msg:
+        example: success
+        type: string
+    type: object
+  model.KOLSearchResultVO:
+    properties:
+      avatar_url:
+        type: string
+      base_quote:
+        type: number
+      credit_score:
+        type: integer
+      fans_count:
+        type: integer
+      platform:
+        type: string
+      platform_uid:
+        type: string
+      real_name:
+        type: string
+      tags:
+        items:
+          type: string
+        type: array
+      user_id:
+        type: integer
+    type: object
+  model.SearchKOLsResp:
+    properties:
+      list:
+        items:
+          $ref: '#/definitions/model.KOLSearchResultVO'
+        type: array
+      total:
+        type: integer
+    type: object
+host: localhost:8002
+info:
+  contact: {}
+  description: 匹配系统接口文档，提供红人筛选、需求解析、受众重合度匹配等核心能力。
+  title: 匹配系统微服务 API (Match System Service)
+  version: "1.0"
+paths:
+  /api/v1/kol/search:
+    get:
+      consumes:
+      - application/json
+      description: 品牌方根据关键词、平台、领域标签、预算和粉丝数等条件动态筛选红人，支持分页和多种排序规则。
+      parameters:
+      - description: 搜索关键词(匹配姓名/昵称)
+        in: query
+        name: keyword
+        type: string
+      - description: 平台过滤，如 douyin, bilibili
+        in: query
+        name: platforms
+        type: array
+      - description: 领域标签过滤，如 数码, 美妆
+        in: query
+        name: tags
+        type: array
+      - description: 最小粉丝数
+        in: query
+        name: min_fans
+        type: integer
+      - description: 最大粉丝数
+        in: query
+        name: max_fans
+        type: integer
+      - description: 最小报价预算
+        in: query
+        name: min_price
+        type: number
+      - description: 最大报价预算
+        in: query
+        name: max_price
+        type: number
+      - default: 1
+        description: 页码 (最小为1)
+        in: query
+        name: page
+        required: true
+        type: integer
+      - default: 10
+        description: 每页数量 (1-100)
+        in: query
+        name: page_size
+        required: true
+        type: integer
+      - default: credit_score
+        description: 排序字段：fans_count, base_quote, credit_score
+        in: query
+        name: sort_by
+        type: string
+      - default: desc
+        description: 排序方向：asc, desc
+        in: query
+        name: order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功返回红人列表
+          schema:
+            $ref: '#/definitions/model.BaseResponse-model_SearchKOLsResp'
+        "400":
+          description: 参数校验失败
+          schema:
+            $ref: '#/definitions/model.BaseResponse-any'
+        "500":
+          description: 内部服务器错误
+          schema:
+            $ref: '#/definitions/model.BaseResponse-any'
+      security:
+      - ApiKeyAuth: []
+      summary: 搜索红人列表
+      tags:
+      - KOL匹配模块
+securityDefinitions:
+  ApiKeyAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

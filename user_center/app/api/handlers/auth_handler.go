@@ -27,7 +27,7 @@ type LoginReq struct {
 	Password   string `json:"password" vd:"required;msg:'密码不能为空'"`
 	ClientType string `json:"client_type" vd:"$=='pc'||$=='mobile';msg:'客户端类型必须为 pc 或 mobile'"`
 	// 新增：前端需要告诉后端，用户是从哪个角色的专属页面发起的登录
-	Role int `json:"role" vd:"$==1||$==2;msg:'登录角色参数不合法(必须为1或2)'"`
+	Role int `json:"role" vd:"$==1||$==2||$==99;msg:'登录角色参数不合法(必须为1或2 or 管理员角色码)'"`
 }
 
 // ResetPasswordReq 密码重置请求参数
