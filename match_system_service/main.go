@@ -9,6 +9,7 @@ import (
 	"kol_ads_marketing/match_system_service/dal/db"
 	"kol_ads_marketing/match_system_service/dal/es"
 	"kol_ads_marketing/match_system_service/pkg/utils/logger"
+	"kol_ads_marketing/match_system_service/service/scheduler"
 	"os"
 )
 
@@ -43,6 +44,10 @@ func main() {
 	db.Init()
 	es.Init()
 	cache.Init()
+	// 3. 启动定时任务调度器 (Cron)
+	cronScheduler := scheduler.InitScheduler(db.DB, cache.RDB)
+
+	defer cronScheduler.Stop()
 
 	// 2. 微服务引擎构建
 	serverPort := getEnv("MATCH_SYSTEM_PORT", "8082")

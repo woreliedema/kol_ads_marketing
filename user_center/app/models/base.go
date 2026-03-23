@@ -49,6 +49,9 @@ type KOLProfile struct {
 	Tags        string  `gorm:"type:json;comment:领域标签(如[数码,美妆])，MySQL8.0原生支持JSON" json:"tags"`
 	BaseQuote   float64 `gorm:"type:decimal(10,2);comment:红人自行设置的基础底价" json:"base_quote"`
 	CreditScore int     `gorm:"type:int;default:100;comment:平台信用分(影响排序推荐)" json:"credit_score"`
+
+	CreatedAt time.Time `gorm:"autoCreateTime;comment:数据生成时间" json:"created_at"`
+	UpdatedAt time.Time `gorm:"autoUpdateTime;comment:数据最后更新时间" json:"updated_at"`
 }
 
 // BrandProfile 品牌方业务扩展表
@@ -60,6 +63,9 @@ type BrandProfile struct {
 	Industry    string `gorm:"type:varchar(64);comment:所属行业" json:"industry"`
 	LicenseURL  string `gorm:"type:varchar(255);comment:营业执照图片地址" json:"license_url"`
 	IsVerified  bool   `gorm:"type:tinyint(1);default:0;comment:是否通过企业资质认证" json:"is_verified"`
+
+	CreatedAt time.Time `gorm:"autoCreateTime;comment:数据生成时间" json:"created_at"`
+	UpdatedAt time.Time `gorm:"autoUpdateTime;comment:数据最后更新时间" json:"updated_at"`
 }
 
 // UserUGCAccount 跨平台社交账号绑定表 (与数据采集模块直接联动)

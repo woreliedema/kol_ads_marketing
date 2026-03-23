@@ -62,6 +62,9 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: root_password
       MYSQL_DATABASE: KOL_platform
+        - TZ=Asia/Shanghai
+    command:
+      - --default-time-zone=+08:00
     ports:
       - "3306:3306"
     volumes:

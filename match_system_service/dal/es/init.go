@@ -41,4 +41,6 @@ func Init() {
 	}
 
 	log.Println("✅ Elasticsearch 8.0 客户端初始化成功")
+
+	InitIndices()
 }
