@@ -33,6 +33,7 @@ const kolMapping = `
         "index": false 
       },
       "total_followers": { "type": "integer" },
+	  "base_quote": { "type": "double" },
       "tags": { "type": "keyword" },
       "ugc_platforms": { "type": "keyword" },
       "ugc_accounts_detail": { 
@@ -64,7 +65,7 @@ const brandMapping = `
         }
       },
       "brand_avatar_url": { "type": "keyword", "index": false },
-      "industry": { "type": "keyword" },
+      "tags": { "type": "keyword" },
       "is_verified": { "type": "byte" }
     }
   }

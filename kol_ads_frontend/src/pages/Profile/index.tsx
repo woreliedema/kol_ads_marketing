@@ -10,7 +10,10 @@ import {
     bindUgcAccountApi,
     getUgcBindResultApi,
     uploadAvatarApi,
-    UserInfoResponse
+    getTagTreeApi,
+    updateUserTagsApi,
+    UserInfoResponse,
+    TagNode
 } from '../../api/user_center/user.ts';
 
 export default function Profile() {
@@ -32,8 +35,6 @@ export default function Profile() {
     // 资料表单状态 (聚合了KOL和Brand的字段)
     // const [editAvatar, setEditAvatar] = useState('');
     const [editName, setEditName] = useState(''); // KOL用real_name, Brand用company_name
-    const [editIndustry, setEditIndustry] = useState('');
-    const [editTags, setEditTags] = useState('');
     const [editQuote, setEditQuote] = useState<number | ''>('');
 
     // UGC 绑定表单状态
@@ -54,6 +55,12 @@ export default function Profile() {
     const [isDeleteLicenseModalOpen, setIsDeleteLicenseModalOpen] = useState(false); // 控制删除确认弹窗
     const [licenseDeletePassword, setLicenseDeletePassword] = useState(''); // 绑定的密码输入
     const [isDeletingLicense, setIsDeletingLicense] = useState(false); // 删除 Loading 状态
+
+    // 标签矩阵专属状态
+    const [isTagModalOpen, setIsTagModalOpen] = useState(false);
+    const [tagTree, setTagTree] = useState<TagNode[]>([]); // 树形字典
+    const [selectedTags, setSelectedTags] = useState<string[]>([]); // 用户已选的标签名
+    const [isFirstLoginIntercept, setIsFirstLoginIntercept] = useState(false); // 是否是注册后首次拦截
 
     // 处理头像选择与上传逻辑
     const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -248,6 +255,37 @@ export default function Profile() {
         return () => clearInterval(timer);
     }, [data?.ugc_accounts?.length]);
 
+    // 探测用户的标签是否为空，如果为空，主动弹出标签选择矩阵 (场景一)
+    useEffect(() => {
+        if (!data) return;
+
+        let currentTags: string[] = [];
+        if (data.profile.tags) {
+            try { currentTags = JSON.parse(data.profile.tags); } catch(e) {}
+        }
+
+        if (currentTags.length === 0 && !sessionStorage.getItem('tag_intercepted')) {
+            setIsFirstLoginIntercept(true);
+            setIsTagModalOpen(true);
+            sessionStorage.setItem('tag_intercepted', 'true');
+        }
+    }, [data]);
+
+    // 当标签弹窗打开时，去后端请求字典树
+    useEffect(() => {
+        if (isTagModalOpen && tagTree.length === 0) {
+            const fetchTree = async () => {
+                try {
+                    const res: any = await getTagTreeApi();
+                    if (res.code === 0 || res.code === 200) {
+                        setTagTree(res.data.tree || []);
+                    }
+                } catch (e) { console.error("标签字典库加载失败", e); }
+            };
+            fetchTree();
+        }
+    }, [isTagModalOpen]);
+
     if (loading && !data) return <div className="p-10 font-mono text-cyan-500 animate-pulse">$&gt; Scanning Database...</div>;
     if (errorMsg && !data) return <div className="p-10 font-mono text-red-500">[ERR_CRITICAL]: {errorMsg}</div>;
     if (!data) return null;
@@ -261,21 +299,61 @@ export default function Profile() {
     const formatDate = (dateString: string) => dateString.substring(0, 10);
 
     let parsedTags: string[] = [];
-    if (isKol && profile.tags) {
+    if (profile.tags) {
         try { parsedTags = JSON.parse(profile.tags); } catch (e) {}
     }
 
     // --- 交互处理逻辑 ---
+
+    // 处理标签的点选/反选
+    const toggleTag = (tagName: string) => {
+        setSelectedTags(prev => {
+            if (prev.includes(tagName)) {
+                return prev.filter(t => t !== tagName); // 取消选择
+            } else {
+                if (prev.length >= 6) {
+                    alert('[SYS_WARN] 载荷超限：最多只能配置 6 个领域节点！');
+                    return prev;
+                }
+                return [...prev, tagName]; // 增加选择
+            }
+        });
+    };
+
+    // 提交标签更新 (场景一 & 场景二)
+    const handleTagSubmit = async () => {
+        setSubmitting(true);
+        try {
+            const res: any = await updateUserTagsApi(selectedTags);
+            if (res.code === 0 || res.code === 200) {
+                setIsTagModalOpen(false);
+                fetchUserData(); // 刷新大盘
+            } else {
+                alert(res.message || '更新失败');
+            }
+        } catch (err: any) { alert(err.message || '网络异常'); }
+        finally { setSubmitting(false); }
+    };
+
+    // 主动点击修改标签 (场景二)
+    const openTagModal = () => {
+        setIsFirstLoginIntercept(false);
+        // 回显已有的标签
+        let currentTags: string[] = [];
+        if (data?.profile.tags) {
+            try { currentTags = JSON.parse(data.profile.tags); } catch(e) {}
+        }
+        setSelectedTags(currentTags);
+        setIsTagModalOpen(true);
+    };
 
     const openProfileModal = () => {
         // setEditAvatar(profile.avatar_url || '');
         if (isKol) {
             setEditName(profile.real_name || '');
             setEditQuote(profile.base_quote || '');
-            setEditTags(parsedTags.join(', '));
         } else {
             setEditName(profile.company_name || '');
-            setEditIndustry(profile.industry || '');
         }
         setIsProfileModalOpen(true);
     };
@@ -309,22 +387,17 @@ export default function Profile() {
         try {
             let res: any;
             if (isKol) {
-                const tagArray = editTags.split(',').map(t => t.trim()).filter(t => t);
                 res = await updateKolProfileApi({
-                    // avatar_url: editAvatar,
                     real_name: editName,
-                    base_quote: Number(editQuote) || 0,
-                    tags: JSON.stringify(tagArray)
+                    base_quote: Number(editQuote) || 0
                 });
             } else {
                 res = await updateBrandProfileApi({
-                    // avatar_url: editAvatar,
-                    company_name: editName,
-                    industry: editIndustry
+                    company_name: editName
                 });
             }
 
-            if (res.code === 0) {
+            if (res.code === 0 || res.code === 200) {
                 setIsProfileModalOpen(false);
                 fetchUserData(); // 成功后刷新背景大盘数据
             } else {
@@ -435,10 +508,19 @@ export default function Profile() {
                                     <div><span className="block text-slate-500 text-xs font-mono mb-1">真实姓名</span><span className="text-slate-200 font-mono text-sm">{profile.real_name || 'UNDEFINED'}</span></div>
                                     <div><span className="block text-slate-500 text-xs font-mono mb-1">信用积分</span><span className="text-cyan-400 font-mono text-sm">{profile.credit_score} PT</span></div>
                                     <div><span className="block text-slate-500 text-xs font-mono mb-1">基础报价</span><span className="text-green-400 font-mono text-sm">¥ {profile.base_quote}</span></div>
-                                    <div className="md:col-span-2"><span className="block text-slate-500 text-xs font-mono mb-2">领域标签</span>
+                                    <div className="md:col-span-2 mt-2 pt-4 border-t border-slate-800/50">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <span className="block text-slate-500 text-xs font-mono">领域标签</span>
+                                            {/* 场景二：红人主动修改入口 */}
+                                            <button onClick={openTagModal} className={`text-[10px] text-${themeColor}-400 hover:text-${themeColor}-300 hover:underline font-mono cursor-pointer`}>
+                                                [ 修改标签 ]
+                                            </button>
+                                        </div>
                                         <div className="flex flex-wrap gap-2">
                                             {parsedTags.length > 0 ? parsedTags.map((tag, idx) => (
-                                                <span key={idx} className="px-2 py-1 bg-cyan-950/50 border border-cyan-800 text-cyan-300 text-xs font-mono rounded">{tag}</span>
+                                                <span key={idx} className="px-2 py-1 bg-cyan-950/50 border border-cyan-800 text-cyan-300 text-xs font-mono rounded shadow-[0_0_8px_rgba(34,211,238,0.1)]">
+                                                    {tag}
+                                                </span>
                                             )) : <span className="text-slate-600 text-sm">暂未添加标签</span>}
                                         </div>
                                     </div>
@@ -446,7 +528,22 @@ export default function Profile() {
                             ) : (
                                 <>
                                     <div className="md:col-span-2"><span className="block text-slate-500 text-xs font-mono mb-1">公司名称</span><span className="text-slate-200 font-mono text-sm">{profile.company_name || 'UNDEFINED'}</span></div>
-                                    <div><span className="block text-slate-500 text-xs font-mono mb-1">所属行业</span><span className="text-purple-400 font-mono text-sm">{profile.industry || 'UNDEFINED'}</span></div>
+                                    <div className="md:col-span-2 mt-2 pt-4 border-t border-slate-800/50">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <span className="block text-slate-500 text-xs font-mono">所属领域</span>
+                                            {/* 场景二：品牌方主动修改入口 */}
+                                            <button onClick={openTagModal} className={`text-[10px] text-${themeColor}-400 hover:text-${themeColor}-300 hover:underline font-mono cursor-pointer`}>
+                                                [ 修改领域标签 ]
+                                            </button>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {parsedTags.length > 0 ? parsedTags.map((tag, idx) => (
+                                                <span key={idx} className="px-2 py-1 bg-purple-950/50 border border-purple-800 text-purple-300 text-xs font-mono rounded shadow-[0_0_8px_rgba(168,85,247,0.1)]">
+                                                    {tag}
+                                                </span>
+                                            )) : <span className="text-slate-600 text-sm">暂未添加领域</span>}
+                                        </div>
+                                    </div>
                                     {/*  品牌方机密资质展示与上传区  */}
                                     <div className="md:col-span-2 mt-2 pt-4 border-t border-slate-800/50">
                                         <span className="block text-slate-500 text-xs font-mono mb-3">营业执照</span>
@@ -639,10 +736,10 @@ export default function Profile() {
                                         <label className="block text-slate-500 text-xs font-mono mb-2">基础报价 (人民币¥)</label>
                                         <input type="number" value={editQuote} onChange={e => setEditQuote(e.target.value === '' ? '' : Number(e.target.value))} className="w-full bg-slate-900 border border-slate-700 focus:border-cyan-500 rounded px-3 py-2 text-slate-200 font-mono text-sm outline-none" />
                                     </div>
-                                    <div>
-                                        <label className="block text-slate-500 text-xs font-mono mb-2">领域标签 (用逗号分隔)</label>
-                                        <input type="text" placeholder="e.g. 游戏, 主播, 美食" value={editTags} onChange={e => setEditTags(e.target.value)} className="w-full bg-slate-900 border border-slate-700 focus:border-cyan-500 rounded px-3 py-2 text-slate-200 font-mono text-sm outline-none" />
-                                    </div>
+                                    {/*<div>*/}
+                                    {/*    <label className="block text-slate-500 text-xs font-mono mb-2">领域标签 (用逗号分隔)</label>*/}
+                                    {/*    <input type="text" placeholder="e.g. 游戏, 主播, 美食" value={editTags} onChange={e => setEditTags(e.target.value)} className="w-full bg-slate-900 border border-slate-700 focus:border-cyan-500 rounded px-3 py-2 text-slate-200 font-mono text-sm outline-none" />*/}
+                                    {/*</div>*/}
                                 </>
                             ) : (
                                 <>
@@ -650,10 +747,10 @@ export default function Profile() {
                                         <label className="block text-slate-500 text-xs font-mono mb-2">公司名称</label>
                                         <input type="text" value={editName} onChange={e => setEditName(e.target.value)} className="w-full bg-slate-900 border border-slate-700 focus:border-purple-500 rounded px-3 py-2 text-slate-200 font-mono text-sm outline-none" />
                                     </div>
-                                    <div>
-                                        <label className="block text-slate-500 text-xs font-mono mb-2">所属行业</label>
-                                        <input type="text" value={editIndustry} onChange={e => setEditIndustry(e.target.value)} className="w-full bg-slate-900 border border-slate-700 focus:border-purple-500 rounded px-3 py-2 text-slate-200 font-mono text-sm outline-none" />
-                                    </div>
+                                    {/*<div>*/}
+                                    {/*    <label className="block text-slate-500 text-xs font-mono mb-2">所属行业</label>*/}
+                                    {/*    <input type="text" value={editIndustry} onChange={e => setEditIndustry(e.target.value)} className="w-full bg-slate-900 border border-slate-700 focus:border-purple-500 rounded px-3 py-2 text-slate-200 font-mono text-sm outline-none" />*/}
+                                    {/*</div>*/}
                                 </>
                             )}
 
@@ -719,6 +816,7 @@ export default function Profile() {
                     </div>
                 </div>
             )}
+
             {/* --- 全息大图预览弹窗 (Preview Modal) --- */}
             {isPreviewModalOpen && profile.license_url && (
                 <div
@@ -787,6 +885,77 @@ export default function Profile() {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* 🚀 独立领域标签选择弹窗 (Tag Matrix) */}
+            {isTagModalOpen && (
+                <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+                    <div className={`bg-slate-950 border border-${themeColor}-900 shadow-2xl shadow-${themeColor}-900/20 rounded-lg w-full max-w-2xl max-h-[85vh] flex flex-col relative overflow-hidden`}>
+
+                        {/* Header */}
+                        <div className="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-900/50 shrink-0">
+                            <div>
+                                <h2 className={`text-lg font-mono text-${themeColor}-400`}>$&gt; ./configure_domain_nodes.sh</h2>
+                                <p className="text-slate-500 text-xs mt-1">请选择您的核心领域标签 (已选择 {selectedTags.length}/6)</p>
+                            </div>
+                            {!isFirstLoginIntercept && (
+                                <button onClick={() => setIsTagModalOpen(false)} className="text-slate-500 hover:text-red-400 font-mono text-xl">&times;</button>
+                            )}
+                        </div>
+
+                        {/* Body: 标签树渲染 */}
+                        <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+                            {tagTree.length === 0 ? (
+                                <div className={`text-${themeColor}-500 font-mono text-center py-10 animate-pulse`}>LOADING_DICTIONARY...</div>
+                            ) : (
+                                tagTree.map(parent => (
+                                    <div key={parent.id} className="space-y-3">
+                                        <h3 className="text-slate-400 font-mono text-sm border-b border-slate-800/50 pb-1">## {parent.name}</h3>
+                                        <div className="flex flex-wrap gap-2.5">
+                                            {parent.children?.map(child => {
+                                                const isSelected = selectedTags.includes(child.name);
+                                                return (
+                                                    <button
+                                                        key={child.id}
+                                                        onClick={() => toggleTag(child.name)}
+                                                        className={`px-3 py-1.5 text-xs font-mono rounded border transition-all duration-300 cursor-pointer active:scale-95
+                              ${isSelected
+                                                            ? `bg-${themeColor}-900/40 border-${themeColor}-400 text-${themeColor}-300 shadow-[0_0_10px_rgba(var(--tw-colors-${themeColor}-500),0.3)]`
+                                                            : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-500 hover:bg-slate-800'}
+                            `}
+                                                    >
+                                                        {isSelected ? '■' : '□'} {child.name}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+
+                        {/* Footer */}
+                        <div className="p-5 border-t border-slate-800 bg-slate-900/80 flex gap-4 shrink-0">
+                            {isFirstLoginIntercept && (
+                                <button
+                                    onClick={() => setIsTagModalOpen(false)}
+                                    className="px-6 py-2 bg-slate-800 border border-slate-700 text-slate-400 hover:text-slate-200 font-mono rounded transition-colors cursor-pointer"
+                                >
+                                    [ SKIP_FOR_NOW ]
+                                </button>
+                            )}
+                            <button
+                                onClick={handleTagSubmit}
+                                disabled={submitting || selectedTags.length === 0}
+                                className={`flex-1 py-2 bg-slate-900 border border-slate-600 text-slate-300 font-mono rounded font-bold tracking-widest transition-all duration-300 cursor-pointer 
+                  ${(submitting || selectedTags.length === 0) ? 'opacity-50 cursor-not-allowed' : `hover:border-${themeColor}-400 hover:text-${themeColor}-400 hover:bg-${themeColor}-950/30 hover:shadow-[0_0_20px_currentColor] active:scale-[0.98]`}`}
+                            >
+                                {submitting ? 'COMMITTING...' : '[ WRITE_TO_MATRIX ]'}
+                            </button>
+                        </div>
+
                     </div>
                 </div>
             )}

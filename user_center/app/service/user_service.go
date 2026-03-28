@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"kol_ads_marketing/user_center/app/utils"
@@ -82,10 +83,10 @@ func GetUserProfileService(ctx context.Context, userID uint64) (map[string]inter
 }
 
 // UpdateKOLProfileService 更新红人资料
-func UpdateKOLProfileService(ctx context.Context, userID uint64, realName, tags string, baseQuote int) error {
+func UpdateKOLProfileService(ctx context.Context, userID uint64, realName string, baseQuote int) error {
 	updateData := map[string]interface{}{
-		"real_name":  realName,
-		"tags":       tags,
+		"real_name": realName,
+		//"tags":       tags,
 		"base_quote": baseQuote,
 	}
 
@@ -97,10 +98,10 @@ func UpdateKOLProfileService(ctx context.Context, userID uint64, realName, tags 
 }
 
 // UpdateBrandProfileService 更新品牌方资料
-func UpdateBrandProfileService(ctx context.Context, userID uint64, companyName, industry string) error {
+func UpdateBrandProfileService(ctx context.Context, userID uint64, companyName string) error {
 	updateData := map[string]interface{}{
 		"company_name": companyName,
-		"industry":     industry,
+		//"industry":     industry,
 	}
 
 	if err := db.DB.Model(&models.BrandProfile{}).Where("user_id = ?", userID).Updates(updateData).Error; err != nil {
@@ -216,6 +217,34 @@ func DeleteBrandLicenseService(ctx context.Context, userID uint64, password stri
 	if err := db.DB.Model(&models.BrandProfile{}).Where("user_id = ?", userID).Update("license_url", "").Error; err != nil {
 		hlog.CtxErrorf(ctx, "销毁品牌方营业执照数据库记录失败: %v", err)
 		return response.ErrDatabaseError
+	}
+
+	return nil
+}
+
+// UpdateUserTagsService 统一的标签更新服务
+func UpdateUserTagsService(ctx context.Context, userID uint64, role models.RoleType, tags []string) error {
+	// 防御性编程：如果用户选择跳过，设为默认值
+	if len(tags) == 0 {
+		tags = []string{"未分类"} // 给个默认数组
+	}
+
+	tagsJSON, err := json.Marshal(tags)
+	if err != nil {
+		return err
+	}
+
+	// 3. 根据角色定向落库
+	if role == models.RoleKOL {
+		return db.DB.Model(&models.KOLProfile{}).
+			Where("user_id = ?", userID).
+			Update("tags", string(tagsJSON)).Error
+
+	} else if role == models.RoleBrand {
+		// 品牌方也直接更新 tags 字段，写入 JSON 数据！
+		return db.DB.Model(&models.BrandProfile{}).
+			Where("user_id = ?", userID).
+			Update("tags", string(tagsJSON)).Error
 	}
 
 	return nil

@@ -1,0 +1,107 @@
+[
+  {
+    "brand_category": "3C数码家电",
+    "brand_sub_categories": [
+      {
+        "name": "智能手机与穿戴",
+        "mapping_group_id": "G_3C_MOBILE",
+        "mapped_kol_tags": ["手机评测", "穿戴体验", "数码配件", "极客DIY"]
+      },
+      {
+        "name": "PC与外设硬件",
+        "mapping_group_id": "G_3C_PC",
+        "mapped_kol_tags": ["电脑装机", "外设发烧", "游戏外设", "极客DIY"]
+      },
+      {
+        "name": "智能家居/家电",
+        "mapping_group_id": "G_3C_HOME",
+        "mapped_kol_tags": ["智能家居", "家居收纳", "日常Vlog", "生活常识"]
+      }
+    ]
+  },
+  {
+    "brand_category": "美妆与日化",
+    "brand_sub_categories": [
+      {
+        "name": "护肤品",
+        "mapping_group_id": "G_BEAUTY_SKIN",
+        "mapped_kol_tags": ["护肤测评", "敏肌护理", "医美科普", "成分党科普"]
+      },
+      {
+        "name": "彩妆香水",
+        "mapping_group_id": "G_BEAUTY_MAKEUP",
+        "mapped_kol_tags": ["仿妆/妆容", "香氛护理", "平价美妆", "美甲美睫"]
+      },
+      {
+        "name": "男士理容",
+        "mapping_group_id": "G_BEAUTY_MEN",
+        "mapped_kol_tags": ["男士个护", "职场干货", "日常探店"]
+      }
+    ]
+  },
+  {
+    "brand_category": "游戏与互娱",
+    "brand_sub_categories": [
+      {
+        "name": "移动/手游",
+        "mapping_group_id": "G_GAME_MOBILE",
+        "mapped_kol_tags": ["手游竞技", "二次元游戏", "休闲小游戏", "日常Vlog"]
+      },
+      {
+        "name": "PC/主机游戏",
+        "mapping_group_id": "G_GAME_PC",
+        "mapped_kol_tags": ["主机单机", "独立游戏", "我的世界", "怀旧经典", "电竞赛事"]
+      }
+    ]
+  },
+  {
+    "brand_category": "食品饮料",
+    "brand_sub_categories": [
+      {
+        "name": "休闲零食",
+        "mapping_group_id": "G_FOOD_SNACK",
+        "mapped_kol_tags": ["零食测评", "吃播探店", "休闲小游戏", "日常Vlog"]
+      },
+      {
+        "name": "速食与调味",
+        "mapping_group_id": "G_FOOD_FAST",
+        "mapped_kol_tags": ["快手菜谱", "美食教程", "地方美食", "家居收纳"]
+      },
+      {
+        "name": "酒水冲饮",
+        "mapping_group_id": "G_FOOD_BEVERAGE",
+        "mapped_kol_tags": ["日常探店", "烘焙教程", "职场干货"]
+      }
+    ]
+  },
+  {
+    "brand_category": "互联网与教育",
+    "brand_sub_categories": [
+      {
+        "name": "实用工具APP",
+        "mapping_group_id": "G_NET_TOOLS",
+        "mapped_kol_tags": ["职场干货", "生活常识", "硬核科普", "法律避坑"]
+      },
+      {
+        "name": "教育培训",
+        "mapping_group_id": "G_NET_EDU",
+        "mapped_kol_tags": ["语言学习", "心理学", "人文历史", "母婴知识", "职场干货"]
+      }
+    ]
+  },
+  {
+    "brand_category": "汽车与出行",
+    "brand_sub_categories": [
+      {
+        "name": "汽车主机厂",
+        "mapping_group_id": "G_AUTO_CAR",
+        "mapped_kol_tags": ["车载数码", "硬核科普", "旅行攻略"]
+      },
+      {
+        "name": "航司与OTA(旅游)",
+        "mapping_group_id": "G_AUTO_TRAVEL",
+        "mapped_kol_tags": ["旅行攻略", "日常探店", "日常Vlog", "地方美食"]
+      }
+    ]
+  }
+]

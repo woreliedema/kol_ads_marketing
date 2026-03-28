@@ -12,6 +12,7 @@ const KOLList = lazy(() => import('@pages/KOL/List'));
 const KOLAnalysis = lazy(() => import('@pages/KOL/Analysis'));
 const CampaignManager = lazy(() => import('@pages/Campaign'));
 const Profile = lazy(() => import('@pages/Profile'));
+const Match=lazy(()=>import('@pages/Match'));
 
 
 
@@ -48,6 +49,8 @@ function App() {
                     <Route path="dashboard" element={<Dashboard />} />
                     {/* 挂载个人中心路由 */}
                     <Route path="profile" element={<Profile />} />
+                    {/* 挂载匹配系统路由 */}
+                    <Route path="match" element={<Match />} />
                     {/* KOL 资源库 */}
                     <Route path="kol">
                         <Route index element={<KOLList />} />

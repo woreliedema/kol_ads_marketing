@@ -2,11 +2,12 @@ package es
 
 // ESKolDocument 推送到 ES `kol_profiles` 索引的文档结构
 type ESKolDocument struct {
-	KOLUserID      uint64 `json:"kol_user_id"`
-	Username       string `json:"username"`
-	Status         int8   `json:"status"`
-	KOLAvatarURL   string `json:"kol_avatar_url"`
-	TotalFollowers uint32 `json:"total_followers"`
+	KOLUserID      uint64  `json:"kol_user_id"`
+	Username       string  `json:"username"`
+	Status         int8    `json:"status"`
+	KOLAvatarURL   string  `json:"kol_avatar_url"`
+	BaseQuote      float64 `json:"base_quote"`
+	TotalFollowers uint32  `json:"total_followers"`
 
 	// MySQL 中的 JSON 数组在这里映射为原生 Slice，方便 ES 进行倒排索引
 	Tags         []string `json:"tags"`
@@ -26,6 +27,7 @@ type ESBrandDocument struct {
 	Username       string `json:"username"`
 	CompanyName    string `json:"company_name"`
 	BrandAvatarURL string `json:"brand_avatar_url"`
-	Industry       string `json:"industry"`
-	IsVerified     int8   `json:"is_verified"`
+	//Industry       string `json:"industry"`
+	Tags       string `json:"tags"`
+	IsVerified int8   `json:"is_verified"`
 }

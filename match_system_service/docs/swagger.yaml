@@ -1,27 +1,42 @@
 basePath: /
 definitions:
-  model.BaseResponse-any:
+  model.BrandFilterResp:
     properties:
-      code:
-        example: 200
+      list:
+        items:
+          $ref: '#/definitions/model.BrandSyncData'
+        type: array
+      total:
         type: integer
-      data: {}
-      msg:
-        example: success
+    type: object
+  model.BrandSyncData:
+    properties:
+      avatar_url:
+        description: 对应 brand_profiles.avatar_url
+        type: string
+      brand_user_id:
+        description: 对应 sys_users.id
+        type: integer
+      company_name:
+        type: string
+      industry:
+        type: string
+      is_verified:
+        description: 1-是 0-否
+        type: integer
+      username:
         type: string
     type: object
-  model.BaseResponse-model_SearchKOLsResp:
+  model.KolFilterResp:
     properties:
-      code:
-        example: 200
+      list:
+        items:
+          $ref: '#/definitions/model.KolSyncData'
+        type: array
+      total:
         type: integer
-      data:
-        $ref: '#/definitions/model.SearchKOLsResp'
-      msg:
-        example: success
-        type: string
     type: object
-  model.KOLSearchResultVO:
+  model.KolSyncData:
     properties:
       avatar_url:
         type: string
@@ -44,98 +59,142 @@ definitions:
       user_id:
         type: integer
     type: object
-  model.SearchKOLsResp:
+  response.Response:
     properties:
-      list:
-        items:
-          $ref: '#/definitions/model.KOLSearchResultVO'
-        type: array
-      total:
+      code:
+        description: 业务状态码 (非HTTP状态码，例如 0 表示成功，40001 表示参数错误)
         type: integer
+      data:
+        description: 实际的业务数据载荷 (如果没有数据，最好返回空结构体或 nil)
+      message:
+        description: 给前端展示或排查问题的提示语
+        type: string
     type: object
-host: localhost:8002
+host: localhost:8082
 info:
   contact: {}
   description: 匹配系统接口文档，提供红人筛选、需求解析、受众重合度匹配等核心能力。
   title: 匹配系统微服务 API (Match System Service)
   version: "1.0"
 paths:
-  /api/v1/kol/search:
+  /api/v1/match/brand/filter:
     get:
       consumes:
       - application/json
-      description: 品牌方根据关键词、平台、领域标签、预算和粉丝数等条件动态筛选红人，支持分页和多种排序规则。
+      description: 根据所属行业、认证状态等维度筛选潜在合作的品牌方 (对标B站花火“找品牌”功能)
       parameters:
-      - description: 搜索关键词(匹配姓名/昵称)
+      - description: 所属行业标签，如'数码'
         in: query
-        name: keyword
+        name: industry
         type: string
-      - description: 平台过滤，如 douyin, bilibili
+      - description: '是否已认证: 1-已认证, 0-未认证'
         in: query
-        name: platforms
-        type: array
-      - description: 领域标签过滤，如 数码, 美妆
-        in: query
-        name: tags
-        type: array
-      - description: 最小粉丝数
-        in: query
-        name: min_fans
+        name: is_verified
         type: integer
-      - description: 最大粉丝数
-        in: query
-        name: max_fans
-        type: integer
-      - description: 最小报价预算
-        in: query
-        name: min_price
-        type: number
-      - description: 最大报价预算
-        in: query
-        name: max_price
-        type: number
-      - default: 1
-        description: 页码 (最小为1)
+      - description: 页码，默认1
         in: query
         name: page
-        required: true
         type: integer
-      - default: 10
-        description: 每页数量 (1-100)
+      - description: 每页数量，默认20
         in: query
-        name: page_size
-        required: true
+        name: size
         type: integer
-      - default: credit_score
-        description: 排序字段：fans_count, base_quote, credit_score
-        in: query
-        name: sort_by
-        type: string
-      - default: desc
-        description: 排序方向：asc, desc
-        in: query
-        name: order
-        type: string
       produces:
       - application/json
       responses:
         "200":
-          description: 成功返回红人列表
+          description: 成功返回品牌方列表
           schema:
-            $ref: '#/definitions/model.BaseResponse-model_SearchKOLsResp'
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.BrandFilterResp'
+              type: object
         "400":
-          description: 参数校验失败
+          description: 参数解析失败
           schema:
-            $ref: '#/definitions/model.BaseResponse-any'
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: Token无效或已过期
+          schema:
+            $ref: '#/definitions/response.Response'
+        "403":
+          description: 权限不足，仅限红人调用
+          schema:
+            $ref: '#/definitions/response.Response'
         "500":
-          description: 内部服务器错误
+          description: 系统检索异常
           schema:
-            $ref: '#/definitions/model.BaseResponse-any'
+            $ref: '#/definitions/response.Response'
       security:
       - ApiKeyAuth: []
-      summary: 搜索红人列表
+      summary: 红人按条件筛选品牌方
       tags:
-      - KOL匹配模块
+      - KOL匹配系统
+  /api/v1/match/kol/filter:
+    get:
+      consumes:
+      - application/json
+      description: 根据领域标签、粉丝量级、价格区间等多维度筛选红人列表 (对标B站花火“找红人”功能)
+      parameters:
+      - description: 领域标签，如'美妆'
+        in: query
+        name: field_tag
+        type: string
+      - description: 粉丝量级，格式'min,max'，如'10000,100000'
+        in: query
+        name: fan_level
+        type: string
+      - description: 最低报价限制
+        in: query
+        name: price_min
+        type: integer
+      - description: 最高报价限制
+        in: query
+        name: price_max
+        type: integer
+      - description: 页码，默认1
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量，默认20
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功返回红人列表及总数
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.KolFilterResp'
+              type: object
+        "400":
+          description: 参数解析失败
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: Token无效或已过期
+          schema:
+            $ref: '#/definitions/response.Response'
+        "403":
+          description: 权限不足，仅限品牌方调用
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: 系统检索异常
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: 品牌方按标签筛选红人
+      tags:
+      - KOL匹配系统
 securityDefinitions:
   ApiKeyAuth:
     in: header

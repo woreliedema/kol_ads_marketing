@@ -35,6 +35,11 @@ export default defineConfig({
                 changeOrigin: true,
                 // rewrite: (path) => path.replace(/^\/api\/v1\/crawler/, '/api/v1/crawler'),
             },
+            // 将匹配系统的请求路由到 8082 端口
+            '/api/v1/match': {
+                target: 'http://localhost:8082',
+                changeOrigin: true
+            },
             '/uploads': {
                 target: 'http://localhost:8081', // 转发给 Go 的 h.Static
                 changeOrigin: true,

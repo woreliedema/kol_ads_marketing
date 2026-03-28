@@ -54,6 +54,34 @@ export interface UserInfoResponse {
     ugc_accounts: UgcAccount[];
 }
 
+export interface KOLProfilePayload {
+    real_name: string;
+    base_quote: number;
+}
+
+export interface BrandProfilePayload {
+    company_name: string;
+}
+
+// 新增：标签系统专属数据结构
+export interface TagNode {
+    id: number;
+    name: string;
+    children?: TagNode[];
+}
+
+// 新增：获取专属标签树
+export const getTagTreeApi = (targetType?: number) => {
+    return api.get('/user/tags/tree',{
+        params: { target_type: targetType }
+    });
+};
+
+// 新增：更新用户领域标签
+export const updateUserTagsApi = (tags: string[]) => {
+    return api.put('/user/profile/tags', { tags });
+};
+
 // 获取账号详细信息
 export const getUserInfoApi = () => {
     return api.get('/user/info');
@@ -65,12 +93,12 @@ export const resetPasswordApi = (data: any) => {
 };
 
 // 修改 KOL 扩展资料
-export const updateKolProfileApi = (data: any) => {
+export const updateKolProfileApi = (data: KOLProfilePayload) => {
     return api.put('/user/kol/profile', data);
 };
 
 // 修改品牌方扩展资料
-export const updateBrandProfileApi = (data: any) => {
+export const updateBrandProfileApi = (data: BrandProfilePayload) => {
     return api.put('/user/brand/profile', data);
 };
 

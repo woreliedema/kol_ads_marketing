@@ -19,6 +19,12 @@ export default function BaseLayout() {
             zhLabel: '实体档案控制台',
             icon: '[&]',
         },
+        {
+            path: '/match', // 改为真实的路径
+            label: 'MATCH_MATRIX',
+            zhLabel: '商业匹配雷达',
+            icon: '[?]',
+        },
         // 为未来预留的扩展接口
         {
             path: '/campaigns',

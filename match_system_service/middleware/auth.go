@@ -2,16 +2,10 @@ package middleware
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
-	"fmt"
+	"kol_ads_marketing/match_system_service/pkg/auth"
 	"strings"
 
 	"github.com/cloudwego/hertz/pkg/app"
-	"github.com/cloudwego/hertz/pkg/common/hlog"
-	"github.com/redis/go-redis/v9"
-
-	"kol_ads_marketing/match_system_service/dal/cache"
 	"kol_ads_marketing/match_system_service/pkg/constants"
 	"kol_ads_marketing/match_system_service/pkg/response"
 )
@@ -28,8 +22,7 @@ func AuthMiddleware(allowedRoles ...int) app.HandlerFunc {
 		}
 
 		// 2. 兼容 "Bearer <token>" 格式
-		token := strings.TrimPrefix(authHeader, "Bearer ")
-		token = strings.TrimSpace(token)
+		token := strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer "))
 		if token == "" {
 			response.ErrorWithMsg(ctx, response.ErrUnauthorized, "Token 格式错误或为空")
 			ctx.Abort()
@@ -37,25 +30,14 @@ func AuthMiddleware(allowedRoles ...int) app.HandlerFunc {
 		}
 
 		// 2. 查 Redis 获取 Session (注意：这里的 Redis 必须与 user_center 连同一个集群/库)
-		tokenKey := fmt.Sprintf("auth:token:%s", token)
-		sessionJSON, err := cache.RDB.Get(c, tokenKey).Result()
-
-		if errors.Is(err, redis.Nil) {
-			response.Error(ctx, response.ErrUnauthorized)
-			ctx.Abort()
-			return
-		} else if err != nil {
-			hlog.CtxErrorf(c, "Redis 查询 Token 异常: %v", err)
-			response.Error(ctx, response.ErrSystemError)
-			ctx.Abort()
-			return
-		}
-
-		// 4. 解析 Session 数据
-		var sessionInfo constants.SessionInfo
-		if err := json.Unmarshal([]byte(sessionJSON), &sessionInfo); err != nil {
-			hlog.CtxErrorf(c, "解析 Redis Session 数据失败: %v", err)
-			response.ErrorWithMsg(ctx, response.ErrSystemError, "会话数据解析异常")
+		//tokenKey := fmt.Sprintf("auth:token:%s", token)
+		sessionInfo, err := auth.CheckAndGetSession(c, token)
+		if err != nil {
+			if err == auth.ErrTokenInvalid {
+				response.Error(ctx, response.ErrUnauthorized)
+			} else {
+				response.Error(ctx, response.ErrSystemError)
+			}
 			ctx.Abort()
 			return
 		}
@@ -70,7 +52,6 @@ func AuthMiddleware(allowedRoles ...int) app.HandlerFunc {
 					break
 				}
 			}
-
 			if !hasPermission {
 				// 角色不匹配，抛出 403 Forbidden 业务错误
 				response.Error(ctx, response.ErrPermission)

@@ -60,9 +60,10 @@ type BrandProfile struct {
 	UserID      uint64 `gorm:"uniqueIndex;not null" json:"user_id"`
 	CompanyName string `gorm:"type:varchar(128);not null;comment:企业主体名称" json:"company_name"`
 	AvatarURL   string `gorm:"type:varchar(255);comment:头衔url" json:"avatar_url"`
-	Industry    string `gorm:"type:varchar(64);comment:所属行业" json:"industry"`
-	LicenseURL  string `gorm:"type:varchar(255);comment:营业执照图片地址" json:"license_url"`
-	IsVerified  bool   `gorm:"type:tinyint(1);default:0;comment:是否通过企业资质认证" json:"is_verified"`
+	//Industry    string `gorm:"type:varchar(64);comment:所属行业" json:"industry"`
+	Tags       string `gorm:"type:json;comment:领域标签统一使用JSON格式" json:"tags"`
+	LicenseURL string `gorm:"type:varchar(255);comment:营业执照图片地址" json:"license_url"`
+	IsVerified bool   `gorm:"type:tinyint(1);default:0;comment:是否通过企业资质认证" json:"is_verified"`
 
 	CreatedAt time.Time `gorm:"autoCreateTime;comment:数据生成时间" json:"created_at"`
 	UpdatedAt time.Time `gorm:"autoUpdateTime;comment:数据最后更新时间" json:"updated_at"`
@@ -87,4 +88,19 @@ type UserUGCAccount struct {
 	// 联合唯一索引：一个用户在一个平台只能绑定一个核心账号 (或者一个平台UID只能被绑定一次)
 	_ struct{} `gorm:"uniqueIndex:idx_user_platform,column:user_id,platform"`
 	_ struct{} `gorm:"uniqueIndex:idx_platform_uid,column:platform,platform_uid"`
+}
+
+// SysTag 对应数据库的 sys_tags 表
+type SysTag struct {
+	ID             uint64 `gorm:"primaryKey;autoIncrement;comment:标签ID" json:"id"`
+	ParentID       uint64 `gorm:"index:idx_parent_id;default:0;comment:父级ID" json:"parent_id"`
+	Name           string `gorm:"type:varchar(64);not null;comment:标签名称" json:"name"`
+	Level          int8   `gorm:"type:tinyint(4);not null;comment:层级(1-大类,2-细分)" json:"level"`
+	TargetType     int8   `gorm:"index:idx_target_type;type:tinyint(4);default:3;comment:作用域:1-品牌,2-红人,3-通用" json:"target_type"`
+	MappingGroupID string `gorm:"type:varchar(512);comment:同义词/映射组ID" json:"mapping_group_id"`
+	SortOrder      int    `gorm:"type:int(11);default:0;comment:排序权重" json:"sort_order"`
+	Status         int8   `gorm:"type:tinyint(4);default:1;comment:状态：1正常，0禁用" json:"status"`
+
+	CreatedAt time.Time `gorm:"autoCreateTime;type:datetime(3)" json:"created_at"`
+	UpdatedAt time.Time `gorm:"autoUpdateTime;type:datetime(3)" json:"updated_at"`
 }

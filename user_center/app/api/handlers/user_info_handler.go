@@ -17,6 +17,11 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 )
 
+type UpdateTagsReq struct {
+	// 接收前端传来的标签名称数组，例如 ["手机评测", "智能家居"]
+	Tags []string `json:"tags" vd:"len($)<=6;msg:'最多只能选择6个标签'"`
+}
+
 // 1. 查询账号信息接口
 
 // GetUserInfo 获取当前登录用户的详细信息
@@ -50,9 +55,9 @@ func GetUserInfo(c context.Context, ctx *app.RequestContext) {
 // 2. 修改 KOL (红人) 扩展信息接口
 
 type UpdateKOLProfileReq struct {
-	RealName  string `json:"real_name"`
-	Tags      string `json:"tags"`       // JSON字符串，如 "[\"游戏\",\"主播\",\"知识\"]"
-	BaseQuote int    `json:"base_quote"` // 基础报价
+	RealName string `json:"real_name"`
+	//Tags      string `json:"tags"`       // JSON字符串，如 "[\"游戏\",\"主播\",\"知识\"]"
+	BaseQuote int `json:"base_quote"` // 基础报价
 }
 
 // UpdateKOLProfile 修改 KOL 专属扩展资料
@@ -85,7 +90,7 @@ func UpdateKOLProfile(c context.Context, ctx *app.RequestContext) {
 	userID := userIDAny.(uint64)
 
 	// 直接下推给 Service 层
-	if err := service.UpdateKOLProfileService(c, userID, req.RealName, req.Tags, req.BaseQuote); err != nil {
+	if err := service.UpdateKOLProfileService(c, userID, req.RealName, req.BaseQuote); err != nil {
 		var apiErr *response.APIError
 		if errors.As(err, &apiErr) {
 			response.Error(ctx, apiErr)
@@ -102,7 +107,7 @@ func UpdateKOLProfile(c context.Context, ctx *app.RequestContext) {
 
 type UpdateBrandProfileReq struct {
 	CompanyName string `json:"company_name"`
-	Industry    string `json:"industry"`
+	//Industry    string `json:"industry"`
 }
 
 // UpdateBrandProfile 修改品牌方专属扩展资料
@@ -134,7 +139,7 @@ func UpdateBrandProfile(c context.Context, ctx *app.RequestContext) {
 	userID := userIDAny.(uint64)
 
 	// 直接下推给 Service 层
-	if err := service.UpdateBrandProfileService(c, userID, req.CompanyName, req.Industry); err != nil {
+	if err := service.UpdateBrandProfileService(c, userID, req.CompanyName); err != nil {
 		var apiErr *response.APIError
 		if errors.As(err, &apiErr) {
 			response.Error(ctx, apiErr)
@@ -359,4 +364,35 @@ func DeleteBusinessLicense(c context.Context, ctx *app.RequestContext) {
 	response.Success(ctx, map[string]interface{}{
 		"message": "敏感资质已安全物理销毁",
 	})
+}
+
+// UpdateUserTags 更新用户领域标签
+// @Summary 修改品牌方扩展资料
+// @Description 品牌方 红人 均可调用。修改领域行业tags参数。
+// @Tags User
+// @Accept json
+// @Produce json
+// @Security ApiKeyAuth
+// @Param request body UpdateTagsReq true "标签名称数组"
+// @Success 200 {object} map[string]interface{} "成功提示"
+// @Router /api/v1/user/profile/tags [put]
+func UpdateUserTags(c context.Context, ctx *app.RequestContext) {
+	var req UpdateTagsReq
+	if err := ctx.BindAndValidate(&req); err != nil {
+		response.ErrorWithMsg(ctx, response.ErrInvalidParams, err.Error())
+		return
+	}
+
+	userIDAny, _ := ctx.Get("user_id")
+	userID := userIDAny.(uint64)
+
+	roleAny, _ := ctx.Get("role")
+	role := roleAny.(models.RoleType)
+
+	if err := service.UpdateUserTagsService(c, userID, role, req.Tags); err != nil {
+		response.Error(ctx, response.ErrDatabaseError)
+		return
+	}
+
+	response.Success(ctx, map[string]interface{}{"message": "领域标签更新成功"})
 }

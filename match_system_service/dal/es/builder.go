@@ -13,6 +13,7 @@ func BuildESKolDoc(model *db.MatchKolWideIndex) (*ESKolDocument, error) {
 		Username:       model.Username,
 		Status:         model.Status,
 		KOLAvatarURL:   model.KOLAvatarURL,
+		BaseQuote:      model.BaseQuote,
 		TotalFollowers: model.TotalFollowers,
 	}
 
@@ -50,7 +51,8 @@ func BuildESBrandDoc(model *db.MatchBrandWideIndex) *ESBrandDocument {
 		Username:       model.Username,
 		CompanyName:    model.CompanyName,
 		BrandAvatarURL: model.BrandAvatarURL,
-		Industry:       model.Industry,
-		IsVerified:     model.IsVerified,
+		//Industry:       model.Industry,
+		Tags:       model.Tags,
+		IsVerified: model.IsVerified,
 	}
 }

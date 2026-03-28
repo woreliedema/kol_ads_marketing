@@ -6,17 +6,17 @@
         "contact": {},
         "version": "1.0"
     },
-    "host": "localhost:8002",
+    "host": "localhost:8082",
     "basePath": "/",
     "paths": {
-        "/api/v1/kol/search": {
+        "/api/v1/match/brand/filter": {
             "get": {
                 "security": [
                     {
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "品牌方根据关键词、平台、领域标签、预算和粉丝数等条件动态筛选红人，支持分页和多种排序规则。",
+                "description": "根据所属行业、认证状态等维度筛选潜在合作的品牌方 (对标B站花火“找品牌”功能)",
                 "consumes": [
                     "application/json"
                 ],
@@ -24,100 +24,178 @@
                     "application/json"
                 ],
                 "tags": [
-                    "KOL匹配模块"
+                    "KOL匹配系统"
                 ],
-                "summary": "搜索红人列表",
+                "summary": "红人按条件筛选品牌方",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "搜索关键词(匹配姓名/昵称)",
-                        "name": "keyword",
-                        "in": "query"
-                    },
-                    {
-                        "type": "array",
-                        "description": "平台过滤，如 douyin, bilibili",
-                        "name": "platforms",
-                        "in": "query"
-                    },
-                    {
-                        "type": "array",
-                        "description": "领域标签过滤，如 数码, 美妆",
-                        "name": "tags",
+                        "description": "所属行业标签，如'数码'",
+                        "name": "industry",
                         "in": "query"
                     },
                     {
                         "type": "integer",
-                        "description": "最小粉丝数",
-                        "name": "min_fans",
+                        "description": "是否已认证: 1-已认证, 0-未认证",
+                        "name": "is_verified",
                         "in": "query"
                     },
                     {
                         "type": "integer",
-                        "description": "最大粉丝数",
-                        "name": "max_fans",
-                        "in": "query"
-                    },
-                    {
-                        "type": "number",
-                        "description": "最小报价预算",
-                        "name": "min_price",
-                        "in": "query"
-                    },
-                    {
-                        "type": "number",
-                        "description": "最大报价预算",
-                        "name": "max_price",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "default": 1,
-                        "description": "页码 (最小为1)",
+                        "description": "页码，默认1",
                         "name": "page",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "default": 10,
-                        "description": "每页数量 (1-100)",
-                        "name": "page_size",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "default": "credit_score",
-                        "description": "排序字段：fans_count, base_quote, credit_score",
-                        "name": "sort_by",
                         "in": "query"
                     },
                     {
-                        "type": "string",
-                        "default": "desc",
-                        "description": "排序方向：asc, desc",
-                        "name": "order",
+                        "type": "integer",
+                        "description": "每页数量，默认20",
+                        "name": "size",
                         "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "成功返回红人列表",
+                        "description": "成功返回品牌方列表",
                         "schema": {
-                            "$ref": "#/definitions/model.BaseResponse-model_SearchKOLsResp"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.BrandFilterResp"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
-                        "description": "参数校验失败",
+                        "description": "参数解析失败",
                         "schema": {
-                            "$ref": "#/definitions/model.BaseResponse-any"
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Token无效或已过期",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "权限不足，仅限红人调用",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
                         }
                     },
                     "500": {
-                        "description": "内部服务器错误",
+                        "description": "系统检索异常",
                         "schema": {
-                            "$ref": "#/definitions/model.BaseResponse-any"
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/match/kol/filter": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "根据领域标签、粉丝量级、价格区间等多维度筛选红人列表 (对标B站花火“找红人”功能)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "KOL匹配系统"
+                ],
+                "summary": "品牌方按标签筛选红人",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "领域标签，如'美妆'",
+                        "name": "field_tag",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "粉丝量级，格式'min,max'，如'10000,100000'",
+                        "name": "fan_level",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "最低报价限制",
+                        "name": "price_min",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "最高报价限制",
+                        "name": "price_max",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "页码，默认1",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量，默认20",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功返回红人列表及总数",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.KolFilterResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数解析失败",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Token无效或已过期",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "权限不足，仅限品牌方调用",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "系统检索异常",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
                         }
                     }
                 }
@@ -125,37 +203,61 @@
         }
     },
     "definitions": {
-        "model.BaseResponse-any": {
+        "model.BrandFilterResp": {
             "type": "object",
             "properties": {
-                "code": {
-                    "type": "integer",
-                    "example": 200
+                "list": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.BrandSyncData"
+                    }
                 },
-                "data": {},
-                "msg": {
-                    "type": "string",
-                    "example": "success"
+                "total": {
+                    "type": "integer"
                 }
             }
         },
-        "model.BaseResponse-model_SearchKOLsResp": {
+        "model.BrandSyncData": {
             "type": "object",
             "properties": {
-                "code": {
-                    "type": "integer",
-                    "example": 200
+                "avatar_url": {
+                    "description": "对应 brand_profiles.avatar_url",
+                    "type": "string"
                 },
-                "data": {
-                    "$ref": "#/definitions/model.SearchKOLsResp"
+                "brand_user_id": {
+                    "description": "对应 sys_users.id",
+                    "type": "integer"
                 },
-                "msg": {
-                    "type": "string",
-                    "example": "success"
+                "company_name": {
+                    "type": "string"
+                },
+                "industry": {
+                    "type": "string"
+                },
+                "is_verified": {
+                    "description": "1-是 0-否",
+                    "type": "integer"
+                },
+                "username": {
+                    "type": "string"
                 }
             }
         },
-        "model.KOLSearchResultVO": {
+        "model.KolFilterResp": {
+            "type": "object",
+            "properties": {
+                "list": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.KolSyncData"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.KolSyncData": {
             "type": "object",
             "properties": {
                 "avatar_url": {
@@ -190,17 +292,19 @@
                 }
             }
         },
-        "model.SearchKOLsResp": {
+        "response.Response": {
             "type": "object",
             "properties": {
-                "list": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/model.KOLSearchResultVO"
-                    }
-                },
-                "total": {
+                "code": {
+                    "description": "业务状态码 (非HTTP状态码，例如 0 表示成功，40001 表示参数错误)",
                     "type": "integer"
+                },
+                "data": {
+                    "description": "实际的业务数据载荷 (如果没有数据，最好返回空结构体或 nil)"
+                },
+                "message": {
+                    "description": "给前端展示或排查问题的提示语",
+                    "type": "string"
                 }
             }
         }

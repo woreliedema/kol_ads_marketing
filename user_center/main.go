@@ -82,6 +82,8 @@ func main() {
 	if err := db.InitMySQL(dbConfig); err != nil {
 		hlog.Fatalf("❌ 数据库初始化失败，微服务拒绝启动: %v", err)
 	}
+	// 执行数据播种，当表不为空时自动return
+	db.InitSysTagsSeeder()
 
 	// 1.3 初始化 Redis 连接池
 	redisConfig := &db.RedisConfig{

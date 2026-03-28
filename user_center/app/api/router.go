@@ -51,6 +51,10 @@ func RegisterRoutes(h *server.Hertz) {
 		protectedGroup.POST("/brand/license/upload", handlers.UploadBusinessLicense)
 		protectedGroup.DELETE("/brand/license", handlers.DeleteBusinessLicense)
 		protectedGroup.PUT("/brand/profile", handlers.UpdateBrandProfile)
+		// 新增：获取专属标签树
+		protectedGroup.GET("/tags/tree", handlers.GetTagTree)
+		// 新增：独立更新标签接口
+		protectedGroup.PUT("/profile/tags", handlers.UpdateUserTags)
 	}
 
 	// 2. 面向内部微服务的 RPC/HTTP 路由组

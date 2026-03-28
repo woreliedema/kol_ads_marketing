@@ -8,9 +8,14 @@ import (
 	"kol_ads_marketing/match_system_service/dal/cache"
 	"kol_ads_marketing/match_system_service/dal/db"
 	"kol_ads_marketing/match_system_service/dal/es"
+	"kol_ads_marketing/match_system_service/pkg/mq"
+	"kol_ads_marketing/match_system_service/pkg/utils"
 	"kol_ads_marketing/match_system_service/pkg/utils/logger"
 	"kol_ads_marketing/match_system_service/service/scheduler"
+	"log"
 	"os"
+	"strconv"
+	"strings"
 )
 
 // @title 匹配系统微服务 API (Match System Service)
@@ -39,11 +44,33 @@ func main() {
 		Format:   getEnv("LOG_FORMAT", "console"),
 		FilePath: "",
 	})
+	workerIDStr := os.Getenv("SNOWFLAKE_WORKER_ID")
+	workerID := int64(1)
+	if workerIDStr != "" {
+		if id, err := strconv.ParseInt(workerIDStr, 10, 64); err == nil {
+			workerID = id
+		}
+	}
+
+	if err := utils.InitSnowflake(workerID); err != nil {
+		log.Fatalf("核心组件 Snowflake 初始化失败: %v", err)
+	}
 
 	// 2. 执行 DAL 初始化
 	db.Init()
 	es.Init()
 	cache.Init()
+
+	kafkaBrokersStr := getEnv("KAFKA_BOOTSTRAP_SERVERS", "127.0.0.1:9092")
+	kafkaTopic := getEnv("KAFKA_MS_IM_TOPIC", "im_chat_messages")
+	// 支持多个 Broker 用逗号分隔 (如 127.0.0.1:9092,127.0.0.1:9093)
+	kafkaBrokers := strings.Split(kafkaBrokersStr, ",")
+	// 2. 初始化 Kafka 生产者
+	mq.InitKafkaProducer(kafkaBrokers, kafkaTopic)
+	defer mq.CloseProducer()
+	// 3. 启动 Kafka 消费者 (异步挂载)
+	mq.StartKafkaConsumer(kafkaBrokers, kafkaTopic)
+	defer mq.CloseConsumer()
 	// 3. 启动定时任务调度器 (Cron)
 	cronScheduler := scheduler.InitScheduler(db.DB, cache.RDB)
 
