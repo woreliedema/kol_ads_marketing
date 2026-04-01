@@ -25,6 +25,12 @@ export default function BaseLayout() {
             zhLabel: '商业匹配雷达',
             icon: '[?]',
         },
+        {
+            path: '/im',
+            label: 'COMM_TERMINAL',
+            zhLabel: '加密通讯终端',
+            icon: '[~]',
+        },
         // 为未来预留的扩展接口
         {
             path: '/campaigns',

@@ -37,7 +37,7 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "所属行业标签，如'数码'",
-                        "name": "industry",
+                        "name": "field_tag",
                         "in": "query"
                     },
                     {
@@ -98,6 +98,141 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "系统检索异常",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/match/im/history": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "传入目标用户ID(target_id)获取历史聊天记录。采用游标(cursor)分页机制解决深度分页性能问题及数据漂移问题；返回的数据已针对UI渲染做了倒序反转；并在后台异步清理未读红点。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "IM消息模块"
+                ],
+                "summary": "获取指定会话的历史聊天记录",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "目标用户ID (被查询的KOL或品牌方UID)",
+                        "name": "target_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "default": "0",
+                        "description": "分页游标：传入上一页返回的 next_cursor 字段值，首页传0即可",
+                        "name": "cursor",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 100,
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 20,
+                        "description": "分页大小：防爆内存最大限制为100",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功获取历史聊天记录及游标状态",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/im.HistoryMessagesResponseData"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数异常（如 target_id 缺失或非法）",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "未授权或Token失效",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/match/im/sessions": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "提取当前登录用户的鉴权上下文，拉取其参与的所有IM会话列表。内置处理了目标用户的头像昵称聚合查询。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "IM消息模块"
+                ],
+                "summary": "获取当前用户的会话列表（左侧联系人列表）",
+                "responses": {
+                    "200": {
+                        "description": "成功获取会话列表",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/im.SessionListResponseData"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "未授权或Token失效",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -209,6 +344,104 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "db.IMMessage": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "description": "强依赖此字段拉取历史消息",
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "msg_id": {
+                    "description": "极客提示：前端 JS 处理 64 位整型会丢失精度，因此 JSON 序列化时自动转为 string",
+                    "type": "string",
+                    "example": "0"
+                },
+                "msg_type": {
+                    "type": "integer"
+                },
+                "receiver_id": {
+                    "type": "integer"
+                },
+                "sender_id": {
+                    "type": "integer"
+                },
+                "session_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "integer"
+                }
+            }
+        },
+        "im.HistoryMessagesResponseData": {
+            "type": "object",
+            "properties": {
+                "has_more": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "messages": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/db.IMMessage"
+                    }
+                },
+                "next_cursor": {
+                    "type": "integer",
+                    "example": 10086
+                }
+            }
+        },
+        "im.SessionItem": {
+            "type": "object",
+            "properties": {
+                "latest_msg": {
+                    "type": "string",
+                    "example": "期待与您的合作！"
+                },
+                "session_id": {
+                    "type": "string",
+                    "example": "sess_123_456"
+                },
+                "target_avatar": {
+                    "type": "string",
+                    "example": "https://cdn.example.com/avatar.png"
+                },
+                "target_user_id": {
+                    "type": "integer",
+                    "example": 456
+                },
+                "target_user_name": {
+                    "type": "string",
+                    "example": "机智的何同学"
+                },
+                "unread_count": {
+                    "type": "integer",
+                    "example": 2
+                },
+                "updated_at": {
+                    "type": "integer",
+                    "example": 1672502400000
+                }
+            }
+        },
+        "im.SessionListResponseData": {
+            "type": "object",
+            "properties": {
+                "sessions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/im.SessionItem"
+                    }
+                }
+            }
+        },
         "model.BrandFilterResp": {
             "type": "object",
             "properties": {
@@ -237,12 +470,12 @@ const docTemplate = `{
                 "company_name": {
                     "type": "string"
                 },
-                "industry": {
-                    "type": "string"
-                },
                 "is_verified": {
                     "description": "1-是 0-否",
                     "type": "integer"
+                },
+                "tags": {
+                    "type": "string"
                 },
                 "username": {
                     "type": "string"
@@ -266,26 +499,18 @@ const docTemplate = `{
         "model.KolSyncData": {
             "type": "object",
             "properties": {
-                "avatar_url": {
-                    "type": "string"
-                },
                 "base_quote": {
                     "type": "number"
                 },
-                "credit_score": {
+                "kol_avatar_url": {
+                    "type": "string"
+                },
+                "kol_user_id": {
+                    "description": "对齐 kol_user_id",
                     "type": "integer"
                 },
-                "fans_count": {
+                "status": {
                     "type": "integer"
-                },
-                "platform": {
-                    "type": "string"
-                },
-                "platform_uid": {
-                    "type": "string"
-                },
-                "real_name": {
-                    "type": "string"
                 },
                 "tags": {
                     "type": "array",
@@ -293,8 +518,39 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
-                "user_id": {
+                "total_followers": {
                     "type": "integer"
+                },
+                "ugc_accounts_detail": {
+                    "description": "嵌套的账号详情数组",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.UgcAccountDetail"
+                    }
+                },
+                "ugc_platforms": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "username": {
+                    "description": "对齐 username",
+                    "type": "string"
+                }
+            }
+        },
+        "model.UgcAccountDetail": {
+            "type": "object",
+            "properties": {
+                "followers_count": {
+                    "type": "integer"
+                },
+                "platform": {
+                    "type": "string"
+                },
+                "platform_uid": {
+                    "type": "string"
                 }
             }
         },

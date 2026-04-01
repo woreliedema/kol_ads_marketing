@@ -13,7 +13,7 @@ const KOLAnalysis = lazy(() => import('@pages/KOL/Analysis'));
 const CampaignManager = lazy(() => import('@pages/Campaign'));
 const Profile = lazy(() => import('@pages/Profile'));
 const Match=lazy(()=>import('@pages/Match'));
-
+const IMTerminal = lazy(() => import('@pages/IM'));
 
 
 // 简单的鉴权高阶组件拦截器示例
@@ -51,6 +51,8 @@ function App() {
                     <Route path="profile" element={<Profile />} />
                     {/* 挂载匹配系统路由 */}
                     <Route path="match" element={<Match />} />
+                    {/* 挂载IM模块路由 */}
+                    <Route path="im" element={<IMTerminal />} />
                     {/* KOL 资源库 */}
                     <Route path="kol">
                         <Route index element={<KOLList />} />

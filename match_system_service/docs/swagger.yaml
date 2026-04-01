@@ -1,5 +1,73 @@
 basePath: /
 definitions:
+  db.IMMessage:
+    properties:
+      content:
+        type: string
+      created_at:
+        description: 强依赖此字段拉取历史消息
+        type: string
+      id:
+        type: integer
+      msg_id:
+        description: 极客提示：前端 JS 处理 64 位整型会丢失精度，因此 JSON 序列化时自动转为 string
+        example: "0"
+        type: string
+      msg_type:
+        type: integer
+      receiver_id:
+        type: integer
+      sender_id:
+        type: integer
+      session_id:
+        type: string
+      status:
+        type: integer
+    type: object
+  im.HistoryMessagesResponseData:
+    properties:
+      has_more:
+        example: true
+        type: boolean
+      messages:
+        items:
+          $ref: '#/definitions/db.IMMessage'
+        type: array
+      next_cursor:
+        example: 10086
+        type: integer
+    type: object
+  im.SessionItem:
+    properties:
+      latest_msg:
+        example: 期待与您的合作！
+        type: string
+      session_id:
+        example: sess_123_456
+        type: string
+      target_avatar:
+        example: https://cdn.example.com/avatar.png
+        type: string
+      target_user_id:
+        example: 456
+        type: integer
+      target_user_name:
+        example: 机智的何同学
+        type: string
+      unread_count:
+        example: 2
+        type: integer
+      updated_at:
+        example: 1672502400000
+        type: integer
+    type: object
+  im.SessionListResponseData:
+    properties:
+      sessions:
+        items:
+          $ref: '#/definitions/im.SessionItem'
+        type: array
+    type: object
   model.BrandFilterResp:
     properties:
       list:
@@ -19,11 +87,11 @@ definitions:
         type: integer
       company_name:
         type: string
-      industry:
-        type: string
       is_verified:
         description: 1-是 0-否
         type: integer
+      tags:
+        type: string
       username:
         type: string
     type: object
@@ -38,26 +106,42 @@ definitions:
     type: object
   model.KolSyncData:
     properties:
-      avatar_url:
-        type: string
       base_quote:
         type: number
-      credit_score:
+      kol_avatar_url:
+        type: string
+      kol_user_id:
+        description: 对齐 kol_user_id
         type: integer
-      fans_count:
+      status:
+        type: integer
+      tags:
+        items:
+          type: string
+        type: array
+      total_followers:
+        type: integer
+      ugc_accounts_detail:
+        description: 嵌套的账号详情数组
+        items:
+          $ref: '#/definitions/model.UgcAccountDetail'
+        type: array
+      ugc_platforms:
+        items:
+          type: string
+        type: array
+      username:
+        description: 对齐 username
+        type: string
+    type: object
+  model.UgcAccountDetail:
+    properties:
+      followers_count:
         type: integer
       platform:
         type: string
       platform_uid:
         type: string
-      real_name:
-        type: string
-      tags:
-        items:
-          type: string
-        type: array
-      user_id:
-        type: integer
     type: object
   response.Response:
     properties:
@@ -85,7 +169,7 @@ paths:
       parameters:
       - description: 所属行业标签，如'数码'
         in: query
-        name: industry
+        name: field_tag
         type: string
       - description: '是否已认证: 1-已认证, 0-未认证'
         in: query
@@ -132,6 +216,88 @@ paths:
       summary: 红人按条件筛选品牌方
       tags:
       - KOL匹配系统
+  /api/v1/match/im/history:
+    get:
+      consumes:
+      - application/json
+      description: 传入目标用户ID(target_id)获取历史聊天记录。采用游标(cursor)分页机制解决深度分页性能问题及数据漂移问题；返回的数据已针对UI渲染做了倒序反转；并在后台异步清理未读红点。
+      parameters:
+      - description: 目标用户ID (被查询的KOL或品牌方UID)
+        in: query
+        name: target_id
+        required: true
+        type: string
+      - default: "0"
+        description: 分页游标：传入上一页返回的 next_cursor 字段值，首页传0即可
+        in: query
+        name: cursor
+        type: string
+      - default: 20
+        description: 分页大小：防爆内存最大限制为100
+        in: query
+        maximum: 100
+        minimum: 1
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功获取历史聊天记录及游标状态
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/im.HistoryMessagesResponseData'
+              type: object
+        "400":
+          description: 参数异常（如 target_id 缺失或非法）
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: 未授权或Token失效
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: 获取指定会话的历史聊天记录
+      tags:
+      - IM消息模块
+  /api/v1/match/im/sessions:
+    get:
+      consumes:
+      - application/json
+      description: 提取当前登录用户的鉴权上下文，拉取其参与的所有IM会话列表。内置处理了目标用户的头像昵称聚合查询。
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功获取会话列表
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/im.SessionListResponseData'
+              type: object
+        "401":
+          description: 未授权或Token失效
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: 获取当前用户的会话列表（左侧联系人列表）
+      tags:
+      - IM消息模块
   /api/v1/match/kol/filter:
     get:
       consumes:

@@ -64,5 +64,9 @@ func RegisterRoutes(h *server.Hertz) {
 	{
 		internalGroup.GET("/user/:id/profile", handlers.GetInternalUserProfile)
 		internalGroup.POST("/user/:id/ugc_bind", handlers.InternalUGCAuthCallback)
+		// 根据 user_id 查单个
+		internalGroup.GET("/user/info", handlers.GetInternalUserInfo)
+		// 传入 []uids 查批量 (使用 POST 方便传递 JSON Body)
+		internalGroup.POST("/users/batch_info", handlers.BatchGetUserInfo)
 	}
 }

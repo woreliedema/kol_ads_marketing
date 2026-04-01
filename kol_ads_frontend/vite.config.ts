@@ -40,6 +40,12 @@ export default defineConfig({
                 target: 'http://localhost:8082',
                 changeOrigin: true
             },
+            // WebSocket 专属协议升级隧道代理 (指向匹配系统 8082 端口)
+            '/ws': {
+                target: 'ws://localhost:8082',
+                ws: true, // 开启 WebSocket 代理支持
+                changeOrigin: true
+            },
             '/uploads': {
                 target: 'http://localhost:8081', // 转发给 Go 的 h.Static
                 changeOrigin: true,

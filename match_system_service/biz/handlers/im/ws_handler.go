@@ -3,7 +3,6 @@ package im
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -139,7 +138,7 @@ func Connect(c context.Context, ctx *app.RequestContext) {
 					kolID = currentUserID
 				}
 
-				sessionID := GenerateSessionID(currentUserID, msgReq.ReceiverID)
+				sessionID := utils.GenerateSessionID(currentUserID, msgReq.ReceiverID)
 
 				// 1. 补全安全与业务字段 (不要相信前端传的 SenderID，从鉴权上下文里取)
 				// 1. 组装安全的富领域模型 (Enriched Model)
@@ -193,12 +192,4 @@ func sendWsMsg(conn *websocket.Conn, cmdType int, data interface{}) {
 	}
 	respBytes, _ := json.Marshal(resp)
 	_ = conn.WriteMessage(websocket.TextMessage, respBytes)
-}
-
-// GenerateSessionID 生成 SessionID
-func GenerateSessionID(userA, userB uint64) string {
-	if userA < userB {
-		return fmt.Sprintf("%d_%d", userA, userB)
-	}
-	return fmt.Sprintf("%d_%d", userB, userA)
 }

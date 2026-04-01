@@ -18,7 +18,7 @@ func SyncBrandToWideIndex(db *gorm.DB, lastSyncTime time.Time) error {
             GREATEST(IFNULL(u.updated_at, '1970-01-01'), IFNULL(b.updated_at, '1970-01-01')),
             0 -- 核心：只要有更新，sync_status 就重置为 0，等待被推送到 ES
         FROM kol_user_center.sys_users u
-        JOIN kol_user_center.brand_profiles b ON u.id = b.user_id
+        JOIN kol_user_center.brand_profiles b ON u.id = b.user_id AND u.role = 2
         WHERE u.updated_at > ? OR b.updated_at > ?
         ON DUPLICATE KEY UPDATE 
             status = VALUES(status),
@@ -51,7 +51,7 @@ func SyncKOLToWideIndex(db *gorm.DB, lastSyncTime time.Time) error {
         FROM kol_user_center.sys_users u
         JOIN kol_user_center.kol_profiles k ON u.id = k.user_id
         LEFT JOIN kol_user_center.user_ugc_accounts a ON u.id = a.user_id  
-        WHERE u.status = 1
+        WHERE u.status = 1 and u.role = 1
             and u.updated_at > ? OR k.updated_at > ? OR u.id IN (SELECT user_id FROM kol_user_center.user_ugc_accounts WHERE update_at > ?)
         GROUP BY u.id, u.username, u.status, kol_avatar_url, k.tags, k.base_quote
         ON DUPLICATE KEY UPDATE 

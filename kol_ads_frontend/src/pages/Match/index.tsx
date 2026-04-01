@@ -1,9 +1,12 @@
 // src/pages/Match/index.tsx
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { filterKolsApi, filterBrandsApi } from '../../api/match_engine/match.ts';
 import {getUserInfoApi, getTagTreeApi, TagNode} from '../../api/user_center/user.ts';
 
 export default function MatchMatrix() {
+    const navigate = useNavigate();
+
     const [role, setRole] = useState<number | null>(null);
     const [loading, setLoading] = useState(true);
     const [searching, setSearching] = useState(false);
@@ -82,6 +85,39 @@ export default function MatchMatrix() {
         } finally {
             setSearching(false);
         }
+    };
+
+    // 阶梯式数据格式化引擎 (粉丝量智能降维)
+    const formatFollowers = (count: number) => {
+        if (!count || isNaN(count)) return '0';
+        if (count < 1000) return count.toString(); // 0 ~ 999: 原样输出
+        if (count < 10000) return (count / 1000).toFixed(1) + ' k'; // 1000 ~ 9999: 1.x k
+        return (count / 10000).toFixed(1) + ' w'; // >= 10000: x.x w
+    };
+
+    // 跨路由唤起 IM 终端
+    const handleStartChat = (item: any) => {
+        // 💡 终极装甲：不依赖外部的 isKol 状态，直接让数据自己说话！
+        // 只要卡片里有 brand_user_id 就取它，没有就取 kol_user_id
+        const targetUserId = item.brand_user_id || item.kol_user_id;
+
+        // 名字优先展示品牌公司名，没有再降级到账号用户名
+        const targetUserName = item.company_name || item.username || 'UNKNOWN_TARGET';
+
+        // 头像同理，哪边有值取哪边
+        const targetAvatar = item.avatar_url || item.kol_avatar_url || '/default-avatar.png';
+
+        // 组装标准跨端通讯档案
+        const targetUser = {
+            target_user_id: String(targetUserId), // 绝对安全的 String 强转
+            target_user_name: targetUserName,
+            target_avatar: targetAvatar
+        };
+
+        console.log('[MATCH_SYS] 准备跃迁，目标对象提取成功:', targetUser);
+
+        // 带着真实数据跃迁到通讯终端
+        navigate('/im', { state: { targetUser } });
     };
 
     // 角色加载完毕或页码变化时自动搜索
@@ -248,62 +284,96 @@ export default function MatchMatrix() {
                     <p className="text-slate-500 font-mono text-sm">NO_ENTITIES_FOUND_IN_THIS_SECTOR</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {list.map((item, idx) => (
-                        <div key={idx} className="bg-slate-900/60 border border-slate-800 hover:border-slate-600 rounded-lg overflow-hidden group transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+                <div className="flex flex-col gap-4">
+                    {list.map((item, idx) => {
+                        // 💡 极客防御：安全解析标签 (兼容品牌方的 JSON 字符串和红人方的数组)
+                        let parsedTags: string[] = [];
+                        try {
+                            parsedTags = Array.isArray(item.tags) ? item.tags : (typeof item.tags === 'string' ? JSON.parse(item.tags || '[]') : []);
+                        } catch (e) {}
+                        // 如果解析失败或者为空，但存在旧版的 industry，则降级使用 industry
+                        if (parsedTags.length === 0 && item.industry) parsedTags = [item.industry];
 
-                            {/* 红人看品牌方的卡片 */}
-                            {isKol ? (
-                                <div className="p-5">
-                                    <div className="flex items-start justify-between mb-4">
-                                        <img src={item.avatar_url || '/default-avatar.png'} alt="logo" className="w-12 h-12 rounded bg-slate-800 object-cover" />
-                                        {item.is_verified === 1 && <span className="text-xs text-green-400 border border-green-800 bg-green-950/30 px-2 py-0.5 rounded font-mono">V_CERTIFIED</span>}
+                        return (
+                            <div
+                                key={idx}
+                                className={`bg-slate-900/40 border rounded-lg p-5 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 flex flex-col md:flex-row items-start md:items-center gap-6 ${isKol ? 'border-cyan-900/30 hover:border-cyan-600' : 'border-purple-900/30 hover:border-purple-600'}`}
+                            >
+                                {/* 1. 核心身份区 (左侧) */}
+                                <div className="flex items-center gap-4 w-full md:w-[30%] shrink-0">
+                                    <div className="relative shrink-0">
+                                        <img
+                                            src={isKol ? (item.avatar_url || '/default-avatar.png') : (item.kol_avatar_url || '/default-avatar.png')}
+                                            alt="avatar"
+                                            className={`w-14 h-14 rounded-full border-2 object-cover bg-slate-800 ${isKol ? 'border-cyan-800' : 'border-purple-800'}`}
+                                        />
+                                        {/* 状态绿点指示器 */}
+                                        {(item.is_verified === 1 || item.status === 1) && (
+                                            <span className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-slate-900 bg-green-500"></span>
+                                        )}
                                     </div>
-                                    <h3 className="text-lg font-bold text-slate-200 truncate">{item.company_name}</h3>
-                                    <p className="text-slate-500 text-xs font-mono mt-1">ID: {item.brand_user_id} | @{item.username}</p>
-                                    <div className="mt-4 pt-4 border-t border-slate-800">
-                    <span className="text-cyan-400 text-xs border border-cyan-900 bg-cyan-950/30 px-2 py-1 rounded">
-                      INDUSTRY: {item.industry || 'UNKNOWN'}
-                    </span>
+                                    <div className="flex-1 min-w-0">
+                                        <h3 className="text-lg font-bold text-slate-200 truncate" title={isKol ? item.company_name : item.username}>
+                                            {isKol ? item.company_name : item.username}
+                                        </h3>
+                                        {/* 🚀 物理抹除真实 ID，展示高端业务状态 */}
+                                        <p className="text-slate-500 text-[10px] font-mono mt-1">
+                                            STATUS: {isKol ? (item.is_verified === 1 ? 'V_CERTIFIED' : 'UNVERIFIED') : (item.status === 1 ? 'ACTIVE' : 'IDLE')}
+                                        </p>
                                     </div>
                                 </div>
-                            ) : (
 
-                                // 品牌方看红人的卡片
-                                <div className="p-5">
-                                    <div className="flex items-center gap-4 mb-4">
-                                        <img src={item.kol_avatar_url || '/default-avatar.png'} alt="avatar" className="w-12 h-12 rounded-full border border-purple-500/30 object-cover" />
-                                        <div>
-                                            <h3 className="text-base font-bold text-slate-200 truncate">{item.username}</h3>
-                                            <p className="text-slate-500 text-[10px] font-mono">ID: {item.kol_user_id} | STATUS: {item.status === 1 ? 'OK' : 'ERR'}</p>
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-2 mb-4">
-                                        <div className="bg-slate-950 p-2 rounded border border-slate-800">
-                                            <div className="text-slate-500 text-[10px] font-mono">FANS</div>
-                                            <div className="text-purple-400 font-mono font-bold">{(item.total_followers / 10000).toFixed(1)} W</div>
-                                        </div>
-                                        <div className="bg-slate-950 p-2 rounded border border-slate-800">
-                                            <div className="text-slate-500 text-[10px] font-mono">BASE_QUOTE</div>
-                                            <div className="text-green-400 font-mono font-bold">¥ {item.base_quote}</div>
-                                        </div>
-                                    </div>
-                                    <div className="flex flex-wrap gap-1 mb-3">
-                                        {item.tags?.slice(0,3).map((tag: string, i: number) => (
-                                            <span key={i} className="text-[10px] text-slate-400 border border-slate-700 px-1.5 py-0.5 rounded bg-slate-900">#{tag}</span>
-                                        ))}
-                                    </div>
-                                    <div className="pt-3 border-t border-slate-800 flex gap-2">
-                                        {item.ugc_platforms?.map((plat: string, i: number) => (
-                                            <span key={i} className="w-5 h-5 flex items-center justify-center rounded bg-slate-800 text-slate-300 text-[10px] font-bold" title={plat}>
-                        {plat.substring(0,1).toUpperCase()}
-                      </span>
-                                        ))}
-                                    </div>
+                                {/* 2. 商业指标区 (中部 - 仅品牌方看红人时有具体指标) */}
+                                <div className="flex gap-8 w-full md:w-[25%] shrink-0">
+                                    {!isKol && (
+                                        <>
+                                            <div>
+                                                <p className="text-slate-500 text-[10px] font-mono mb-1">$&gt; FANS</p>
+                                                <p className="text-purple-400 font-bold font-mono text-lg">
+                                                    {formatFollowers(item.total_followers)}
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <p className="text-slate-500 text-[10px] font-mono mb-1">$&gt; BASE_QUOTE</p>
+                                                <p className="text-green-400 font-bold font-mono text-lg">
+                                                    ¥ {item.base_quote}
+                                                </p>
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
-                            )}
-                        </div>
-                    ))}
+
+                                {/* 3. 战术标签与操作区 (右侧) */}
+                                <div className="flex-1 flex flex-col md:flex-row items-start md:items-center justify-between w-full gap-4 min-w-0">
+
+                                    {/* 标签与平台矩阵 */}
+                                    <div className="flex flex-wrap items-center gap-1.5 flex-1 min-w-0">
+                                        {parsedTags.slice(0, 4).map((tag: string, i: number) => (
+                                            <span key={i} className={`text-[10px] border px-2 py-1 rounded whitespace-nowrap ${isKol ? 'text-cyan-400 border-cyan-900 bg-cyan-950/30' : 'text-purple-400 border-purple-900 bg-purple-950/30'}`}>
+                                    #{tag}
+                                </span>
+                                        ))}
+
+                                        {/* 红人的 UGC 平台小图标 (保留你之前的精妙设计) */}
+                                        {!isKol && item.ugc_platforms && item.ugc_platforms[0] !== "" && item.ugc_platforms.map((plat: string, i: number) => (
+                                            <span key={`plat-${i}`} className="w-5 h-5 flex items-center justify-center rounded bg-slate-800 text-slate-300 text-[10px] font-bold ml-1 shadow-sm" title={plat}>
+                                    {plat.substring(0,1).toUpperCase()}
+                                </span>
+                                        ))}
+                                    </div>
+
+                                    {/* 发起沟通按钮 (自动适配双端主题色) */}
+                                    <button
+                                        onClick={() => handleStartChat(item)}
+                                        className={`shrink-0 px-6 py-2.5 border text-xs font-bold font-mono rounded transition-all cursor-pointer flex items-center gap-2 ${isKol ? 'bg-cyan-950/30 border-cyan-800 text-cyan-400 hover:bg-cyan-900/50 hover:shadow-[0_0_15px_rgba(34,211,238,0.3)]' : 'bg-purple-950/30 border-purple-800 text-purple-400 hover:bg-purple-900/50 hover:shadow-[0_0_15px_rgba(168,85,247,0.3)]'}`}
+                                    >
+                                        <span>[+] INITIATE_COMMS</span>
+                                    </button>
+                                </div>
+
+                            </div>
+                        );
+                    })}
                 </div>
             )}
 

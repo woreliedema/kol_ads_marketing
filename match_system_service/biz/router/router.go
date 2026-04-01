@@ -50,8 +50,19 @@ func RegisterRoutes(h *server.Hertz) {
 			brandGroup.GET("/filter", brand.FilterBrands)
 		}
 
+		// 新增：IM 通讯模块路由组
+		// 挂载鉴权中间件 (不传参数代表只需要 Token 有效，不限制角色)
+		imGroup := matchGroup.Group("/im", middleware.AuthMiddleware())
+		{
+			// 获取左侧会话列表
+			imGroup.GET("/sessions", im.GetSessionList)
+			// 获取与特定用户的历史聊天记录
+			imGroup.GET("/history", im.GetHistoryMessages)
+			// 挂载清空未读数路由
+			imGroup.POST("read", im.ClearSessionUnread)
+		}
+
 		// 如果有不需要鉴权的公开接口，可以直接挂载在 matchGroup 下
-		// matchGroup.GET("/public/info", publicHandler)
 	}
 	// 2. 面向内部微服务的 RPC/HTTP 路由组...
 }

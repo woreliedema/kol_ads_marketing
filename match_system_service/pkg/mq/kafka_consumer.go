@@ -1,4 +1,4 @@
-// kol_ads_marketing/match_system_service/pkg/mq/kafka_consumer.go
+// match_system_service/pkg/mq/kafka_consumer.go
 package mq
 
 import (
@@ -129,11 +129,16 @@ func StartIMMessageConsumer(ctx context.Context, brokers []string, topic, groupI
 			// 处理并落库
 			err = svc.ProcessKafkaMessage(ctx, m.Value)
 			if err != nil {
-				// 根据错误类型决定是重试还是推送到死信队列(DLQ)
-				log.Printf("持久化消息失败 (offset: %d): %v", m.Offset, err)
-				continue // MVP阶段先打印日志跳过。进阶版需要加入重试队列
-			}
+				hlog.CtxErrorf(ctx, "持久化消息失败 (offset: %d): %v", m.Offset, err)
 
+				// 【极客防御】：判断是否为 JSON 解析等不可恢复的业务错误
+				// 假设它属于结构体/数据污染导致的不可恢复错误，我们必须 Commit 把它跳过去！
+				// tod如果是数据库短时宕机导致的 err，才需要利用延时重试，不要 Commit。
+				// MVP 阶段为了防止主链路堵死，我们强制提交脏数据 offset：
+				hlog.CtxWarnf(ctx, "跳过毒药消息并提交 Offset，防止死循环")
+				_ = r.CommitMessages(ctx, m)
+				continue
+			}
 			// 落库成功后提交Offset，保证At-Least-Once语义
 			if err := r.CommitMessages(ctx, m); err != nil {
 				log.Printf("提交Offset失败: %v", err)
