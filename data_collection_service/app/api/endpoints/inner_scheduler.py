@@ -20,10 +20,10 @@ router = APIRouter()
 @router.post("/inner/target/register", response_model=ResponseModel)
 async def register_crawler_target(
         uid: str,
-        resource_type: str,  # 例如: 'scrape_user_info' 或 'scrape_and_store_video_comments'
+        resource_type: str,  # 例如: 'scrape_user_info' 或 'scrape_and_store_video_comments' 或 'scrape_and_store_user_videos'
         target_id: str,  # 例如: '123456'(UID) 或 'BV1xx'(BV号)
         platform_type: int = 3,
-        interval_minutes: int = 720,  # 12小时
+        interval_minutes: int = 1440,  # 24小时
         db: Session = Depends(get_db)
 ):
     """

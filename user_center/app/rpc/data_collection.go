@@ -6,9 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"kol_ads_marketing/user_center/app/core"
 	"net/http"
 	"net/url"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/cloudwego/hertz/pkg/common/hlog"
@@ -16,6 +18,30 @@ import (
 
 // 获取 Python 服务的基础地址 (优先读环境变量，兜底本地 8000)
 func getPythonBaseURL() string {
+	serviceName := os.Getenv("DATA_COLLECTION_NAME")
+
+	// 1. 尝试走 Nacos 动态服务发现
+	if serviceName != "" {
+		groupName := os.Getenv("NACOS_GROUP")
+		if groupName == "" {
+			groupName = "DEFAULT_GROUP"
+		}
+		clusterName := os.Getenv("NACOS_CLUSTER")
+		if clusterName == "" {
+			clusterName = "DEFAULT"
+		}
+
+		ip, port, err := core.GetHealthyInstance(serviceName, groupName, clusterName)
+		if err == nil && ip != "" && port != 0 {
+			// Nacos 命中！动态组装 URL
+			return fmt.Sprintf("http://%s:%d", ip, port)
+		}
+
+		// 如果 Nacos 没找到服务（比如 Python 端还没启动），打印警告并触发降级
+		hlog.Warnf("[RPC] Nacos 服务发现失败 [%s]，触发降级机制: %v", serviceName, err)
+	}
+
+	// 2. 优雅降级：读取固定环境变量配置
 	ip := os.Getenv("DATA_COLLECTION_IP")
 	port := os.Getenv("DATA_COLLECTION_PORT")
 	if ip == "" {
@@ -31,7 +57,7 @@ func ParseProfileURL(ctx context.Context, platform, spaceURL string) (string, er
 	targetURL := fmt.Sprintf("%s/inner/tools/parse_profile_url?platform=%s&url=%s",
 		getPythonBaseURL(), platform, url.QueryEscape(spaceURL))
 	//client := &http.Client{Timeout: 3 * time.Second} // 3秒超时，快失败
-	req, err := http.NewRequest("GET", targetURL, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", targetURL, nil)
 	if err != nil {
 		hlog.CtxErrorf(ctx, "[RPC] 创建请求失败: %v", err)
 		return "", errors.New("内部服务构建请求失败")
@@ -56,7 +82,7 @@ func ParseProfileURL(ctx context.Context, platform, spaceURL string) (string, er
 	}
 
 	// 解析 Python 返回的 JSON
-	// (假设 Python 返回格式为 {"code": 200, "data": {"uid": "xxx"}, "msg": "ok"})
+	// Python 返回格式为 {"code": 200, "data": {"uid": "xxx"}, "msg": "ok"})
 	// 如果你的 Python 返回字段名不一样，请修改下面结构体里的 json 标签！
 	var result struct {
 		Code   int    `json:"code"`
@@ -82,8 +108,8 @@ func ParseProfileURL(ctx context.Context, platform, spaceURL string) (string, er
 	return result.Data.UID, nil
 }
 
-// RegisterCrawlerTarget 异步调用 Python 服务注册爬虫任务
-func RegisterCrawlerTarget(platform, targetID string) {
+// RegisterCrawlerTarget 异步、并发调用 Python 服务注册爬虫任务
+func RegisterCrawlerTarget(ctx context.Context, platform, targetID string) {
 	var platformType int
 	var resourceTypes []string
 
@@ -91,8 +117,8 @@ func RegisterCrawlerTarget(platform, targetID string) {
 	switch platform {
 	case "bilibili":
 		platformType = 3
-		// B站绑定需要同时触发两个抓取任务
-		resourceTypes = []string{"scrape_and_store_user_info", "scrape_and_store_user_relation"}
+		// B站绑定需要同时触发三个抓取任务(爬取用户基本信息、爬取用户关系信息、爬取用户发布视频内容，爬取用户发布视频内容任务会自动触发爬取视频基础信息和视频评论任务)
+		resourceTypes = []string{"scrape_and_store_user_info", "scrape_and_store_user_relation", "scrape_and_store_user_videos"}
 	case "douyin":
 		platformType = 1
 		// 假设抖音也需要这两个任务 (根据实际 数据采集服务 中的任务类型进行调整,当前还未开发douyin和tiktok模块，先占位)
@@ -101,53 +127,69 @@ func RegisterCrawlerTarget(platform, targetID string) {
 		platformType = 2
 		resourceTypes = []string{"scrape_and_store_user_info"}
 	default:
-		fmt.Printf("[Async RPC] 未知的平台类型: %s，无法派发任务\n", platform)
+		hlog.CtxWarnf(ctx, "[Async RPC] 未知的平台类型: %s，无法派发任务\n", platform)
 		return
 	}
 
 	baseURL := fmt.Sprintf("%s/inner/target/register", getPythonBaseURL())
 
-	// 复用同一个 HTTP Client (5秒超时足够了)
-	client := &http.Client{Timeout: 5 * time.Second}
+	go func(bgCtx context.Context) {
+		client := &http.Client{Timeout: 5 * time.Second}
+		var wg sync.WaitGroup
 
-	// 2. 遍历该平台需要的所有任务类型，分别向 Python 发起 POST 请求
-	for _, resType := range resourceTypes {
-		// 🚀 核心看点：基于 Swagger 截图，这里必须构建 Query Params，而不是 JSON
-		params := url.Values{}
-		params.Add("uid", targetID)          // 用户的平台 UID
-		params.Add("resource_type", resType) // 任务类型
-		params.Add("target_id", targetID)    // 目标ID (同 UID)
-		params.Add("platform_type", fmt.Sprintf("%d", platformType))
-		// interval_minutes 截图显示有默认值，我们这里就不传了，让 Python 用默认的
+		// 💡 核心设计 2：并发扇出 (Fan-out)
+		// 之前是串行发送 HTTP 请求，现在针对 3 个任务我们同时开 3 个 Goroutine 发送
+		for _, resType := range resourceTypes {
+			wg.Add(1)
 
-		// 拼接出最终的请求地址: http://127.0.0.1:8000/inner/target/register?uid=xxx&resource_type=yyy...
-		requestURL := fmt.Sprintf("%s?%s", baseURL, params.Encode())
+			// 必须将 resType 作为参数传入闭包，避免经典 for 循环变量捕获问题
+			go func(taskType string) {
+				defer wg.Done()
 
-		// 创建 POST 请求 (注意最后传入的 body 是 nil，因为参数全在 URL 里)
-		req, err := http.NewRequest("POST", requestURL, nil)
-		if err != nil {
-			fmt.Printf("[Async RPC] 构建爬虫注册请求失败 (task: %s): %v\n", resType, err)
-			continue
+				params := url.Values{}
+				params.Add("uid", targetID)
+				params.Add("resource_type", taskType)
+				params.Add("target_id", targetID)
+				params.Add("platform_type", fmt.Sprintf("%d", platformType))
+
+				requestURL := fmt.Sprintf("%s?%s", baseURL, params.Encode())
+
+				// 使用背景 ctx 进行控制
+				req, err := http.NewRequestWithContext(bgCtx, "POST", requestURL, nil)
+				if err != nil {
+					hlog.CtxErrorf(bgCtx, "[Async RPC] 构建请求失败 (task: %s): %v", taskType, err)
+					return
+				}
+
+				req.Header.Set("X-Internal-Secret", os.Getenv("INTERNAL_SECRET_KEY"))
+
+				resp, err := client.Do(req)
+				if err != nil {
+					hlog.CtxErrorf(bgCtx, "[Async RPC] 触发调度失败, target: %s, task: %s, err: %v", targetID, taskType, err)
+					return
+				}
+
+				// 💡 核心设计 3：彻底解决 defer 的闭包泄露问题
+				// 此时 defer 是在单独的 goroutine 闭包中，因此请求一结束立刻关闭 Body，零泄露风险。
+				defer func(Body io.ReadCloser) {
+					_ = Body.Close()
+				}(resp.Body)
+
+				// 非 200 状态码告警
+				if resp.StatusCode != http.StatusOK {
+					hlog.CtxWarnf(bgCtx, "[Async RPC] 派发任务异常状态码: %d -> Task: %s", resp.StatusCode, taskType)
+					return
+				}
+
+				hlog.CtxInfof(bgCtx, "[Async RPC] 成功派发 -> 平台: %d, Task: %s, UID: %s", platformType, taskType, targetID)
+			}(resType)
 		}
 
-		// 挂上咱们最核心的内部通信秘钥防线
-		req.Header.Set("X-Internal-Secret", os.Getenv("INTERNAL_SECRET_KEY"))
+		// 等待这几个并发请求全部发完后，退出主控协程
+		wg.Wait()
+		hlog.CtxInfof(bgCtx, "[Async RPC] UID: %s 的所有 (%d 个) 爬虫任务并行派发完成", targetID, len(resourceTypes))
 
-		// 发起请求
-		resp, err := client.Do(req)
-		if err != nil {
-			fmt.Printf("[Async RPC] 触发爬虫调度失败, target: %s, task: %s, err: %v\n", targetID, resType, err)
-			continue // 失败了就继续下一个任务，不要阻断
-		}
-
-		// 必须在循环里显式关闭 Body，防止连接池泄漏
-		defer func() {
-			_ = resp.Body.Close()
-		}()
-
-		fmt.Printf("[Async RPC] 成功派发爬虫任务 -> 平台: %d, Task: %s, UID: %s (Status: %d)\n",
-			platformType, resType, targetID, resp.StatusCode)
-	}
+	}(context.Background())
 }
 
 // CheckProfileFreshness 同步探测鲜活数据 (L1 Redis / L2 CK)
@@ -156,7 +198,7 @@ func CheckProfileFreshness(ctx context.Context, platform, uid string) (bool, map
 	// 拼接探测路由 (根据你的架构设计：GET /inner/data/profile/{platform}/{uid})
 	targetURL := fmt.Sprintf("%s/inner/data/profile/%s/%s", getPythonBaseURL(), platform, uid)
 
-	req, _ := http.NewRequest("GET", targetURL, nil)
+	req, _ := http.NewRequestWithContext(ctx, "GET", targetURL, nil)
 	req.Header.Set("X-Internal-Secret", os.Getenv("INTERNAL_SECRET_KEY"))
 
 	client := &http.Client{Timeout: 3 * time.Second} // 3秒超时快失败

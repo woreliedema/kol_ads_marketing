@@ -27,8 +27,8 @@ async def lifespan(app: FastAPI):
     """
     管理 FastAPI 的启动与关闭事件
     最佳实践架构原则：
-    - 启动：先建立底层依赖(DB/Kafka)，再暴露服务发现(Nacos)
-    - 停机：先切断服务发现(Nacos)，再断开底层依赖(DB/Kafka)
+    - 启动：底层资源(DB) -> 生产者(Kafka Producer) -> 服务发现(Nacos) -> 流量入口(Consumer/Scheduler)
+    - 停机：切断流量入口(Scheduler/Consumer) -> 注销服务(Nacos) -> 断开底层(Producer/DB)
     """
     logger.info("🚀 ================== 数据采集服务准备启动 ================== 🚀")
     try:
@@ -48,19 +48,20 @@ async def lifespan(app: FastAPI):
         logger.info("[Init] ClickHouse 数据库连接初始化成功。")
         # 初始化 Redis 异步连接池 (支撑高并发热缓存)
         await redis_client_mgr.init_pool()
+        logger.info("[Init] Redis 热缓存连接池初始化成功。")
 
         # 步骤 2: 启动 Kafka 生产者
         await kafka_producer.start()
         logger.info("[Init] Kafka 生产者启动成功。")
-        # 步骤 2: 启动 Kafka 消费
+        # 步骤 3: 注册到 Nacos 注册中心 (服务就绪，开始接收流量)
+        await nacos_registry.register()
+        logger.info("[Init] Nacos 服务注册成功。")
+        # 步骤 3: 启动 Kafka 消费
         await kafka_consumer.start()
         logger.info("[Init] Kafka 消费者后台守护进程启动成功。")
 
         await scheduler_daemon.start()
-
-        # 步骤 3: 注册到 Nacos 注册中心 (服务就绪，开始接收流量)
-        await nacos_registry.register()
-        logger.info("[Init] Nacos 服务注册成功。")
+        logger.info("[Init] 定时扫描引擎启动成功。")
 
         logger.info("✅ ================== 数据采集服务启动完成 ================== ✅ ")
 
@@ -75,12 +76,12 @@ async def lifespan(app: FastAPI):
     finally:
         logger.info("🛑 ================== 数据采集服务正在关闭 ================== 🛑")
 
-        # 步骤 1: 停机第一步：注销 Nacos 服务 (告诉网关不要再派发新流量)
+        # 步骤 1: 停机第一步：停止定时任务引擎 (从源头掐断自身产生的新任务)
         try:
-            await nacos_registry.deregister()
-            logger.info("[Cleanup] Nacos 服务注销成功。")
+            await scheduler_daemon.stop()
+            logger.info("[Cleanup] 定时扫描引擎已安全关闭。")
         except Exception as e:
-            logger.error(f"[Cleanup] Nacos 注销异常: {str(e)}")
+            logger.error(f"[Cleanup] 定时扫描引擎关闭异常: {str(e)}")
 
         # 步骤 2. 停止 Kafka 消费者 (不再从队列拉取新任务，允许正在执行的任务跑完)
         try:
@@ -89,17 +90,24 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.error(f"[Cleanup] Kafka 消费者关闭异常: {str(e)}")
 
+        # 步骤 3: 注销 Nacos 服务 (告诉 API 网关/其他微服务不要再派发新 HTTP 流量)
+        try:
+            await nacos_registry.deregister()
+            logger.info("[Cleanup] Nacos 服务注销成功。")
+        except Exception as e:
+            logger.error(f"[Cleanup] Nacos 注销异常: {str(e)}")
+
         # 优雅停机缓冲期：给当前还在处理中的请求留出 1 秒收尾时间
         await asyncio.sleep(1)
 
-        # 步骤 3. 安全关闭 Kafka 生产者 (确保状态更新等最后一条消息被 flush 到 Broker)
+        # 步骤 4. 安全关闭 Kafka 生产者 (确保状态更新等最后一条消息被 flush 到 Broker)
         try:
             await kafka_producer.stop()
             logger.info("[Cleanup] Kafka 生产者已安全关闭。")
         except Exception as e:
             logger.error(f"[Cleanup] Kafka 生产者关闭异常: {str(e)}")
 
-        # 步骤 4: 断开 ClickHouse 等底层数据库连接
+        # 步骤 5: 断开 ClickHouse 等、redis底层数据库连接
         try:
             await ClickHouseManager.close_db()
             logger.info("[Cleanup] ClickHouse 数据库连接已安全关闭。")

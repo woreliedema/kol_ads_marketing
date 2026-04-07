@@ -34,6 +34,20 @@ class DataCleaningService:
         except (ValueError, TypeError):
             return datetime.now()
 
+    # 辅助函数：将 "05:20" 或 "01:05:20" 转化为秒数
+    @staticmethod
+    def _parse_duration_to_seconds(value: str, default: int = 0) -> int:
+        parts = value.split(':')
+        try:
+            if len(parts) == 2:
+                return int(parts[0]) * 60 + int(parts[1])
+            elif len(parts) == 3:
+                return int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+            else:
+                return int(parts[0])
+        except (ValueError, TypeError):
+            return default
+
     @classmethod
     def clean_bilibili_video_comments(cls, raw_comments: List[Dict[str, Any]], bvid: str, oid: int, batch_id: str) -> List[Dict[str, Any]]:
         cleaned_data = []
@@ -304,3 +318,54 @@ class DataCleaningService:
             cleaned_pages.append(page_record)
 
         return cleaned_pages
+
+    @classmethod
+    def clean_upload_video_info(cls, raw_data: List[Dict[str, Any]], batch_id: str) -> List[Dict[str, Any]]:
+        """
+
+        :param raw_data:
+        :param batch_id:
+        :return:
+        """
+        if not raw_data:
+            return raw_data
+
+        cleaned_data = []
+
+        for item in raw_data:
+            root_record = cls._parse_single_upload_video_info(item, batch_id)
+            cleaned_data.append(root_record)
+
+        return cleaned_data
+
+
+
+    @classmethod
+    def _parse_single_upload_video_info(cls, raw_data: Dict[str, Any], batch_id: str) -> Dict[str, Any]:
+        """
+        """
+
+        meta_data = raw_data.get('meta_data', {})
+
+        video_data = {
+            'bvid': cls._safe_string(raw_data.get('bvid')),
+            'oid': cls._safe_int(raw_data.get('aid')),  # 映射: aid -> oid
+            'mid': cls._safe_int(raw_data.get('mid')),
+            'batch_id': cls._safe_int(batch_id),
+            'title': cls._safe_string(raw_data.get('title')),
+            'pic': cls._safe_string(raw_data.get('pic')),
+            'type_id': cls._safe_int(raw_data.get('type_id')),
+            'copyright': cls._safe_int(raw_data.get('copyright')),
+            'duration': cls._parse_duration_to_seconds(raw_data.get('length')),
+            'is_pay': cls._safe_int(raw_data.get('is_pay')),
+            'is_union_video': cls._safe_int(raw_data.get('is_union_video')),
+            'is_lesson_video': cls._safe_int(raw_data.get('is_lesson_video')),
+            'is_live_playback': cls._safe_int(raw_data.get('is_live_playback')),
+            'is_charging_arc': cls._safe_int(raw_data.get('is_charging_arc')),
+            'is_steins_gate': cls._safe_int(raw_data.get('is_steins_gate')),
+            'season_id': cls._safe_int(raw_data.get('season_id')),
+            'season_title': cls._safe_string(meta_data.get('title')),
+            'pubdate': cls._safe_datetime(raw_data.get('pubdate')),
+            'pubdate_ts': cls._safe_int(raw_data.get('pubdate'))
+        }
+        return video_data

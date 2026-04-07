@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { registerApi } from '../../api/user_center/auth';
+import { registerApi, getPublicKeyApi } from '../../api/user_center/auth';
+import { encryptPassword } from '../../utils/crypto';
 
 export default function Register() {
     const [searchParams] = useSearchParams();
@@ -53,10 +54,24 @@ export default function Register() {
         setIsRegistering(true);
 
         try {
-            // 发起真实网络请求
+            // 动态获取安全锁 (RSA 公钥)
+            const pkRes: any = await getPublicKeyApi();
+            if (pkRes.code !== 0) {
+                setErrorMsg('[SECURE_ERR] 安全环境初始化失败，请刷新重试');
+                return;
+            }
+            const publicKey = pkRes.data.public_key;
+
+            // RSA 加密
+            const encryptedPassword = encryptPassword(password, publicKey);
+            if (!encryptedPassword) {
+                setErrorMsg('[SECURE_ERR] 加密引擎异常');
+                return;
+            }
+            // 发起网络请求
             const payload = {
                 email: email,
-                password: password,
+                password: encryptedPassword,
                 phone: phone,
                 role: role,
                 username: username

@@ -7,20 +7,15 @@ import (
 	"time"
 
 	"kol_ads_marketing/user_center/app/api"
-	//"kol_ads_marketing/user_center/app/api/handlers"
-	//"kol_ads_marketing/user_center/app/api/middleware"
-	//"kol_ads_marketing/user_center/app/api/response"
 	"kol_ads_marketing/user_center/app/core"
 	"kol_ads_marketing/user_center/app/db"
+	"kol_ads_marketing/user_center/app/utils"
 	"kol_ads_marketing/user_center/app/utils/logger"
 	_ "kol_ads_marketing/user_center/docs"
 
-	//"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/app/server"
 	"github.com/cloudwego/hertz/pkg/common/hlog"
-	//"github.com/hertz-contrib/swagger"
 	"github.com/joho/godotenv"
-	//swaggerFiles "github.com/swaggo/files"
 )
 
 // @title KOL 营销平台用户中心 API
@@ -64,6 +59,7 @@ func main() {
 		Format:   getEnv("LOG_FORMAT", "console"),
 		FilePath: "",
 	})
+	utils.InitRSAKeys()
 
 	// 1.2 初始化数据库
 	dbConfig := &db.MySQLConfig{
@@ -114,8 +110,8 @@ func main() {
 		Host:        getEnv("NACOS_HOST", "127.0.0.1"),
 		Port:        nacosPort,
 		NamespaceId: getEnv("NACOS_NAMESPACE", "public"),
-		ServiceName: getEnv("SERVICE_NAME", "user-center-service"),
-		Ip:          getEnv("SERVICE_IP", "127.0.0.1"),
+		ServiceName: getEnv("USER_CENTER_NAME", "user-center-service"),
+		Ip:          getEnv("USER_CENTER_IP", "127.0.0.1"),
 		ServicePort: svcPort,
 		Weight:      1.0,
 		GroupName:   getEnv("NACOS_GROUP", "DEFAULT_GROUP"),

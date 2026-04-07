@@ -109,7 +109,9 @@ class KafkaConsumerManager:
                         "scrape_and_store_video_comments": task_service.collect_and_store_video_comments,
                         "scrape_and_store_user_info": task_service.collect_and_store_user_info,
                         "scrape_and_store_user_relation": task_service.collect_and_store_user_relation,
-                        "scrape_and_store_video_info": task_service.collect_and_store_video_info
+                        "scrape_and_store_video_info": task_service.collect_and_store_video_info,
+                        # 新增的爬取用户近一年所有投稿视频作品信息
+                        'scrape_and_store_user_videos': task_service.collect_and_store_user_videos
                     }
                     # 获取对应的处理函数
                     action_handler = bilibili_action_map.get(resource_type)

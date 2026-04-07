@@ -20,7 +20,7 @@ const IMTerminal = lazy(() => import('@pages/IM'));
 const RequireAuth = ({ children }: { children: ReactNode }) => {
     const token = localStorage.getItem('access_token');
     if (!token) {
-        return <Navigate to="/login" replace />;
+        return <Navigate to="/welcome" replace />;
     }
     return <>{children}</>;
 };

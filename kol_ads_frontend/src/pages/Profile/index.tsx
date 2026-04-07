@@ -15,6 +15,8 @@ import {
     UserInfoResponse,
     TagNode
 } from '../../api/user_center/user.ts';
+import { getPublicKeyApi } from '../../api/user_center/auth.ts';
+import { encryptPassword } from '../../utils/crypto';
 
 export default function Profile() {
     const navigate = useNavigate();
@@ -366,7 +368,21 @@ export default function Profile() {
         }
         setSubmitting(true);
         try {
-            const res: any = await resetPasswordApi({ old_password: oldPassword, new_password: newPassword });
+            // 动态获取安全锁 (RSA 公钥)
+            const pkRes: any = await getPublicKeyApi();
+            if (pkRes.code !== 0) {
+                alert('[SECURE_ERR] 安全环境初始化失败，请重试');
+                return;
+            }
+            const publicKey = pkRes.data.public_key;
+            // 对新旧密码进行双重加密
+            const encryptedOldPwd = encryptPassword(oldPassword, publicKey);
+            const encryptedNewPwd = encryptPassword(newPassword, publicKey);
+            if (!encryptedOldPwd || !encryptedNewPwd) {
+                alert('[SECURE_ERR] 加密引擎异常');
+                return;
+            }
+            const res: any = await resetPasswordApi({ old_password: encryptedOldPwd, new_password: encryptedNewPwd });
             if (res.code === 0) {
                 alert('密码修改成功，安全协议要求重新进行身份验证。');
                 localStorage.removeItem('access_token');

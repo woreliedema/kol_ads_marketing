@@ -17,6 +17,9 @@ export interface RegisterPayload {
     password: string;
 }
 
+export const getPublicKeyApi = () => {
+    return api.get('/auth/public-key');
+};
 
 // 登录接口
 export const loginApi = (data: LoginPayload) => {

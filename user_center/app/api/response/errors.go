@@ -22,6 +22,7 @@ func (e *APIError) Error() string {
 
 var (
 	// 400 参数校验与客户端类错误
+	ErrBadRequest    = &APIError{HTTPCode: consts.StatusBadRequest, BizCode: 400000, Message: "错误或非法的请求"}
 	ErrInvalidParams = &APIError{HTTPCode: consts.StatusBadRequest, BizCode: 400001, Message: "请求参数错误或格式非法"}
 	//ErrMissingHeader     = &APIError{HTTPCode: consts.StatusBadRequest, BizCode: 400002, Message: "缺失必要的请求头参数"}
 	ErrInvalidPassword   = &APIError{HTTPCode: consts.StatusBadRequest, BizCode: 400003, Message: "账号或密码错误"}

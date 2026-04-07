@@ -8,7 +8,7 @@ class TaskCreateRequest(BaseModel):
     platform_type: int = Field(3, description="3=B站, 4=抖音")
 
     # 明确了资源类型和资源列表
-    resource_type: str = Field(..., description="可选: 'video', 'user', 'keyword'")
+    resource_type: str = Field(..., description="可选: 'scrape_and_store_video_comments', 'scrape_and_store_user_info', 'scrape_and_store_user_relation'")
     resource_ids: List[str] = Field(..., description="目标ID数组，例如 ['BV1xx', 'BV2xx'] 或 ['178360345']")
 
     params: Optional[dict] = Field(default_factory=dict, description="附加参数", json_schema_extra={"example": {}})

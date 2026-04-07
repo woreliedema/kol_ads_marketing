@@ -3,10 +3,13 @@ package user_center
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/cloudwego/hertz/pkg/app/client"
 	"github.com/cloudwego/hertz/pkg/common/hlog"
 	"github.com/cloudwego/hertz/pkg/protocol"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
+	"github.com/nacos-group/nacos-sdk-go/v2/vo"
+	"kol_ads_marketing/match_system_service/pkg/nacos"
 	"net/url"
 	"os"
 	"time"
@@ -62,9 +65,11 @@ var (
 	// 全局复用的 Hertz HTTP 客户端（自带高性能连接池）
 	rpcClient *client.Client
 
-	// 内存缓存的微服务配置，彻底杜绝高频 syscall
-	baseURL    string
+	// internalSK 用于微服务内部通信验签
 	internalSK string
+
+	// fallbackBaseURL 内存缓存的降级地址（容灾设计：当 Nacos 宕机时兜底）
+	fallbackBaseURL string
 )
 
 // Init 初始化 UserCenter RPC 客户端 (系统启动时调用一次即可)
@@ -83,10 +88,10 @@ func Init() {
 	baseIP := os.Getenv("USER_CENTER_IP")
 	basePORT := os.Getenv("USER_CENTER_PORT")
 	if baseIP == "" || basePORT == "" {
-		baseURL = "http://127.0.0.1:8081" // 开发环境默认降级
+		fallbackBaseURL = "http://127.0.0.1:8081" // 开发环境默认降级
 		hlog.Infof("[RPC UserCenter] 未检测到完整的 IP/PORT 环境变量，使用默认降级地址")
 	} else {
-		baseURL = "http://" + baseIP + ":" + basePORT
+		fallbackBaseURL = fmt.Sprintf("http://%s:%s", baseIP, basePORT)
 	}
 
 	internalSK = os.Getenv("INTERNAL_SECRET_KEY")
@@ -94,7 +99,33 @@ func Init() {
 		hlog.Warnf("[RPC UserCenter] 警告: 未配置 INTERNAL_SECRET_KEY，内部通信可能受阻")
 	}
 
-	hlog.Infof("[RPC UserCenter] 初始化完成，TargetBaseURL: %s", baseURL)
+	hlog.Infof("[RPC UserCenter] 初始化完成，TargetBaseURL: %s", fallbackBaseURL)
+}
+
+// getTargetURL 核心逻辑：通过 Nacos 动态发现用户中心服务
+func getTargetURL(ctx context.Context, path string) (string, error) {
+	// 容错处理：如果 NamingClient 未初始化，直接走降级逻辑
+	if nacos.NamingClient == nil {
+		hlog.CtxWarnf(ctx, "[RPC UserCenter] Nacos Client 未就绪，触发降级路由 -> %s", fallbackBaseURL)
+		return url.JoinPath(fallbackBaseURL, path)
+	}
+
+	// 从 Nacos 获取一个健康的实例，自带基于权重的随机负载均衡
+	// 注意：这里的 ServiceName 必须与 User Center 启动时注册的名称完全一致！
+	instance, err := nacos.NamingClient.SelectOneHealthyInstance(vo.SelectOneHealthInstanceParam{
+		ServiceName: "user_center_service",
+		GroupName:   "DEFAULT_GROUP", // 保持与服务端一致
+	})
+
+	// 降级兜底：如果 Nacos 报错或无可用实例
+	if err != nil || instance == nil {
+		hlog.CtxErrorf(ctx, "[RPC UserCenter] Nacos 发现服务失败 (%v), 触发降级路由", err)
+		return url.JoinPath(fallbackBaseURL, path)
+	}
+
+	// 动态拼接目标服务器 URL
+	dynamicBaseURL := fmt.Sprintf("http://%s:%d", instance.Ip, instance.Port)
+	return url.JoinPath(dynamicBaseURL, path)
 }
 
 // ---------------- 外部调用接口 ----------------
@@ -117,7 +148,7 @@ func BatchGetUserInfo(ctx context.Context, uids []uint64) map[uint64]BaseUserInf
 	}
 
 	// 2. 安全的 URL 拼接 (利用 Go 1.19+ 的 url.JoinPath 自动处理多余的斜杠 '/')
-	targetURL, err := url.JoinPath(baseURL, "/api/internal/v1/users/batch_info")
+	targetURL, err := getTargetURL(ctx, "/api/internal/v1/users/batch_info")
 	if err != nil {
 		hlog.CtxErrorf(ctx, "[RPC UserCenter] URL 拼接异常: %v", err)
 		return result

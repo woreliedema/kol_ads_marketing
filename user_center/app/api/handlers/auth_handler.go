@@ -8,13 +8,14 @@ import (
 	"kol_ads_marketing/user_center/app/api/response"
 	"kol_ads_marketing/user_center/app/models"
 	service "kol_ads_marketing/user_center/app/service"
+	"kol_ads_marketing/user_center/app/utils"
 )
 
 // 数据传输对象 (DTO) 定义
 
 type RegisterReq struct {
 	Username string          `json:"username" vd:"required,len>4;msg:'用户名必须大于4个字符'"`
-	Password string          `json:"password" vd:"required,len>5;msg:'密码必须大于5个字符'"`
+	Password string          `json:"password" vd:"required;msg:'密码密文不能为空'"`
 	Role     models.RoleType `json:"role" vd:"$==1||$==2;msg:'角色只能是1(红人)或2(品牌方)'"`
 	// 手机号和邮箱字段 (可选加入正则校验)
 	Phone string `json:"phone"`
@@ -24,7 +25,7 @@ type RegisterReq struct {
 type LoginReq struct {
 	Username   string `json:"username" vd:"required;msg:'用户名不能为空'"`
 	Account    string `json:"account"  vd:"required;msg:'邮箱/手机号不能为空'"`
-	Password   string `json:"password" vd:"required;msg:'密码不能为空'"`
+	Password   string `json:"password" vd:"required;msg:'密码密文不能为空'"`
 	ClientType string `json:"client_type" vd:"$=='pc'||$=='mobile';msg:'客户端类型必须为 pc 或 mobile'"`
 	// 新增：前端需要告诉后端，用户是从哪个角色的专属页面发起的登录
 	Role int `json:"role" vd:"$==1||$==2||$==99;msg:'登录角色参数不合法(必须为1或2 or 管理员角色码)'"`
@@ -32,8 +33,17 @@ type LoginReq struct {
 
 // ResetPasswordReq 密码重置请求参数
 type ResetPasswordReq struct {
-	OldPassword string `json:"old_password" vd:"required;msg:'旧密码不能为空'"`
-	NewPassword string `json:"new_password" vd:"required,len>5;msg:'新密码必须大于5个字符'"`
+	OldPassword string `json:"old_password" vd:"required;msg:'旧密码密文不能为空'"`
+	NewPassword string `json:"new_password" vd:"required;msg:'新密码密文不能为空'"`
+}
+
+// GetPublicKey 下发供前端加密使用的 RSA 公钥
+// @Router /api/v1/auth/public-key [get]
+func GetPublicKey(_ context.Context, ctx *app.RequestContext) {
+	// 直接将内存中缓存的公钥丢给前端
+	response.Success(ctx, map[string]interface{}{
+		"public_key": utils.GetPublicKeyPEM(),
+	})
 }
 
 // 核心路由控制逻辑
@@ -54,8 +64,19 @@ func Register(c context.Context, ctx *app.RequestContext) {
 		response.ErrorWithMsg(ctx, response.ErrInvalidParams, err.Error())
 		return
 	}
+	// 解密并校验防重放攻击
+	realPassword, err := utils.DecryptAndValidatePassword(req.Password)
+	if err != nil {
+		response.ErrorWithMsg(ctx, response.ErrBadRequest, err.Error())
+		return
+	}
+	// 原本在 vd 中的长度校验后置到解密之后
+	if len(realPassword) <= 5 {
+		response.ErrorWithMsg(ctx, response.ErrInvalidParams, "真实的密码长度必须大于5个字符")
+		return
+	}
 
-	_, err := service.RegisterService(c, req.Username, req.Password, req.Phone, req.Email, req.Role)
+	_, err = service.RegisterService(c, req.Username, realPassword, req.Phone, req.Email, req.Role)
 	if err != nil {
 		// 标准的错误拦截与断言
 		var apiErr *response.APIError
@@ -91,13 +112,17 @@ func Login(c context.Context, ctx *app.RequestContext) {
 		response.ErrorWithMsg(ctx, response.ErrInvalidParams, "请输入用户名或手机号/邮箱")
 		return
 	}
+
+	// 解密并校验防重放攻击
+	realPassword, err := utils.DecryptAndValidatePassword(req.Password)
+	if err != nil {
+		hlog.CtxWarnf(c, "[安全拦截] 登录接口密码解密失败: %v", err)
+		response.ErrorWithMsg(ctx, response.ErrBadRequest, "安全校验失败：请求过期或被篡改")
+		return
+	}
 	// 提取最终用来登录的账号标识
 	loginAccount := req.Account
-	//if req.Username != "" {
-	//	loginAccount = req.Username
-	//}
-	// 直接调用 Service 层！Handler 里再也见不到 SQL 代码了
-	token, user, err := service.LoginService(c, req.Username, loginAccount, req.Password, req.ClientType, req.Role, ctx.ClientIP())
+	token, user, err := service.LoginService(c, req.Username, loginAccount, realPassword, req.ClientType, req.Role, ctx.ClientIP())
 	if err != nil {
 		// 类型断言 (Type Assertion)
 		// 判断 Service 返回的 err 是不是我们自定义的 *response.APIError
@@ -148,7 +173,25 @@ func ResetPassword(c context.Context, ctx *app.RequestContext) {
 		return
 	}
 
-	err := service.ResetPasswordService(c, userID, req.OldPassword, req.NewPassword)
+	realOldPassword, err := utils.DecryptAndValidatePassword(req.OldPassword)
+	if err != nil {
+		response.ErrorWithMsg(ctx, response.ErrBadRequest, "旧密码安全校验失败: "+err.Error())
+		return
+	}
+
+	realNewPassword, err := utils.DecryptAndValidatePassword(req.NewPassword)
+	if err != nil {
+		response.ErrorWithMsg(ctx, response.ErrBadRequest, "新密码安全校验失败: "+err.Error())
+		return
+	}
+
+	// 校验新密码长度
+	if len(realNewPassword) <= 5 {
+		response.ErrorWithMsg(ctx, response.ErrInvalidParams, "新的密码长度必须大于5个字符")
+		return
+	}
+
+	err = service.ResetPasswordService(c, userID, realOldPassword, realNewPassword)
 
 	if err != nil {
 		var apiErr *response.APIError

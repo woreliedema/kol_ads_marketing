@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { loginApi } from '../../api/user_center/auth.ts';
+import { loginApi, getPublicKeyApi } from '../../api/user_center/auth.ts';
+import { encryptPassword } from '../../utils/crypto';
 
 export default function Login() {
     // 读取 URL 参数
@@ -46,11 +47,24 @@ export default function Login() {
 
         try {
             console.log(`[SYS] Auth sequence initiated...`);
-            // 发起真实网络请求
+            // 动态获取安全锁 (RSA 公钥)
+            const pkRes: any = await getPublicKeyApi();
+            if (pkRes.code !== 0) {
+                setErrorMsg('[SECURE_ERR] 安全环境初始化失败，请刷新重试');
+                return;
+            }
+            const publicKey = pkRes.data.public_key;
+            // RSA 融合时间戳高强度加密
+            const encryptedPassword = encryptPassword(password, publicKey);
+            if (!encryptedPassword) {
+                setErrorMsg('[SECURE_ERR] 加密引擎异常');
+                return;
+            }
+            // 发起网络请求
             const payload = {
                 account: contact,        // 将前端的 contact(手机/邮箱) 映射给后端的 account
                 client_type: 'pc',       // 注入终端类型
-                password: password,
+                password: encryptedPassword,
                 username: username,      // 如果后端强校验 username，则一起传过去
                 role: role               // 透传角色 (1: KOL, 2: Brand)
             };

@@ -35,6 +35,9 @@ func RegisterRoutes(h *server.Hertz) {
 	// 1.1 开放路由 (无需登录鉴权)
 	authGroup := v1.Group("/auth")
 	{
+		// 公钥获取接口
+		authGroup.GET("/public-key", handlers.GetPublicKey)
+		// 登录注册接口
 		authGroup.POST("/register", handlers.Register)
 		authGroup.POST("/login", handlers.Login)
 	}

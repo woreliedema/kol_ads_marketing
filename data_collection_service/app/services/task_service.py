@@ -1,4 +1,3 @@
-import json
 from datetime import datetime
 from sqlalchemy.orm import Session
 
@@ -28,9 +27,8 @@ class TaskService:
     ) -> str:
         """
         创建并派发批量/时序任务
-        :param task_type: 任务动作 (1=全量评论, 2=画像快照, 3=指标监测)
         :param platform_type: 平台 (3=B站, 4=抖音)
-        :param resource_type: 资源维度 ('video', 'user', 'keyword')
+        :param resource_type: 资源维度 ('scrape_and_store_video_comments', 'scrape_and_store_user_info', 'scrape_and_store_user_relation')
         :param resource_ids: 目标ID列表 (如 ['BV1xx', 'BV2xx'])
         :param task_name: 任务备注名
         :param params: 附加限制参数

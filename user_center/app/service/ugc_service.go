@@ -74,7 +74,7 @@ func SubmitUGCBindTask(ctx context.Context, userID uint64, platform, spaceURL st
 	// 异步触发 Python 任务总表调度
 	if !isFresh {
 		// 如果没有鲜活数据，才会触发极其昂贵的 Kafka 爬虫调度
-		go rpc.RegisterCrawlerTarget(platform, platformUID)
+		rpc.RegisterCrawlerTarget(ctx, platform, platformUID)
 	}
 	// 返回成功给 Handler，Handler 接着给前端返回 "绑定成功，数据同步中"
 	return isFresh, nil

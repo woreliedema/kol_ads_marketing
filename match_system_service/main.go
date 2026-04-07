@@ -11,6 +11,7 @@ import (
 	"kol_ads_marketing/match_system_service/dal/db"
 	"kol_ads_marketing/match_system_service/dal/es"
 	"kol_ads_marketing/match_system_service/pkg/mq"
+	"kol_ads_marketing/match_system_service/pkg/nacos"
 	"kol_ads_marketing/match_system_service/pkg/utils"
 	"kol_ads_marketing/match_system_service/pkg/utils/logger"
 	user_rpc "kol_ads_marketing/match_system_service/rpc/user_center"
@@ -48,6 +49,7 @@ func main() {
 		Format:   getEnv("LOG_FORMAT", "console"),
 		FilePath: "",
 	})
+
 	workerIDStr := os.Getenv("SNOWFLAKE_WORKER_ID")
 	workerID := int64(1)
 	if workerIDStr != "" {
@@ -83,16 +85,42 @@ func main() {
 	defer mq.CloseConsumer()
 	mq.StartIMMessageConsumer(context.Background(), kafkaBrokers, kafkaTopic, kafkaPersistGroupID, imPersistSvc)
 
-	// 3. 启动定时任务调度器 (Cron)
+	// 4. 启动定时任务调度器 (Cron)
 	cronScheduler := scheduler.InitScheduler(db.DB, cache.RDB)
 	defer cronScheduler.Stop()
 
-	// 2. 微服务引擎构建
+	// 5. 微服务引擎构建
 	serverPort := getEnv("MATCH_SYSTEM_PORT", "8082")
 	h := server.Default(
 		server.WithHostPorts("0.0.0.0:"+serverPort),
 		server.WithMaxRequestBodySize(20*1024*1024),
 	)
+
+	// 6. Nacos 注册发现逻辑
+	nacosPort, _ := strconv.ParseUint(getEnv("NACOS_PORT", "8848"), 10, 64)
+	svcPort, _ := strconv.ParseUint(serverPort, 10, 64)
+	nacosConfig := &nacos.NacosConfig{
+		Host:        getEnv("NACOS_HOST", "127.0.0.1"),
+		Port:        nacosPort,
+		NamespaceId: getEnv("NACOS_NAMESPACE", "public"),
+		// 这里改为匹配服务的默认名称
+		ServiceName: getEnv("MATCH_SYSTEM_NAME", "match-system-service"),
+		Ip:          getEnv("MATCH_SYSTEM_PORT", "127.0.0.1"),
+		ServicePort: svcPort,
+		Weight:      1.0,
+		GroupName:   getEnv("NACOS_GROUP", "DEFAULT_GROUP"),
+		ClusterName: getEnv("NACOS_CLUSTER", "DEFAULT"),
+	}
+
+	deregisterSvc, err := nacos.InitNacos(nacosConfig)
+	if err != nil {
+		hlog.Fatalf("❌ Nacos 初始化失败: %v", err)
+	}
+
+	// 绑定 Hertz 关闭钩子，确保优雅注销
+	h.OnShutdown = append(h.OnShutdown, func(ctx context.Context) {
+		deregisterSvc()
+	})
 
 	// 4. 路由注册
 	router.RegisterRoutes(h)
