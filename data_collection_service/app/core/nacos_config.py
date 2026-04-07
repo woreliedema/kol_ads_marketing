@@ -16,7 +16,7 @@ class NacosRegistry:
         self.server_address = f"{nacos_host}:{nacos_port}"
 
         self.namespace_id = os.getenv("NACOS_NAMESPACE", "public")
-        self.service_name = os.getenv("USER_CENTER_NAME", "data-collection-service")
+        self.service_name = os.getenv("DATA_COLLECTION_NAME", "data-collection-service")
 
         self.ip = os.getenv("DATA_COLLECTION_IP", "127.0.0.1")
         self.port = int(os.getenv("DATA_COLLECTION_PORT", 8000))
