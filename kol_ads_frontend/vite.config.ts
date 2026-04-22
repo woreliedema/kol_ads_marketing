@@ -40,6 +40,11 @@ export default defineConfig({
                 target: 'http://localhost:8082',
                 changeOrigin: true
             },
+            //打通数据监控微服务 8083
+            '/api/v1/monitor': {
+                target: 'http://localhost:8083',
+                changeOrigin: true,
+            },
             // WebSocket 专属协议升级隧道代理 (指向匹配系统 8082 端口)
             '/ws': {
                 target: 'ws://localhost:8082',

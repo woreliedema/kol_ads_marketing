@@ -35,27 +35,27 @@ class HybridCrawler:
 
     async def hybrid_parsing_single_video(self, url: str, minimal: bool = False):
         # 解析抖音视频/Parse Douyin video
-        if "douyin" in url:
-            platform = "douyin"
-            aweme_id = await self.DouyinWebCrawler.get_aweme_id(url)
-            data = await self.DouyinWebCrawler.fetch_one_video(aweme_id)
-            data = data.get("aweme_detail")
-            # $.aweme_detail.aweme_type
-            aweme_type = data.get("aweme_type")
+        # if "douyin" in url:
+        #     platform = "douyin"
+        #     aweme_id = await self.DouyinWebCrawler.get_aweme_id(url)
+        #     data = await self.DouyinWebCrawler.fetch_one_video(aweme_id)
+        #     data = data.get("aweme_detail")
+        #     # $.aweme_detail.aweme_type
+        #     aweme_type = data.get("aweme_type")
         # 解析TikTok视频/Parse TikTok video
-        elif "tiktok" in url:
-            platform = "tiktok"
-            aweme_id = await self.TikTokWebCrawler.get_aweme_id(url)
-
-            # 2024-09-14: Switch to TikTokAPPCrawler instead of TikTokWebCrawler
-            # data = await self.TikTokWebCrawler.fetch_one_video(aweme_id)
-            # data = data.get("itemInfo").get("itemStruct")
-
-            data = await self.TikTokAPPCrawler.fetch_one_video(aweme_id)
+        # elif "tiktok" in url:
+        #     platform = "tiktok"
+        #     aweme_id = await self.TikTokWebCrawler.get_aweme_id(url)
+        #
+        #     # 2024-09-14: Switch to TikTokAPPCrawler instead of TikTokWebCrawler
+        #     # data = await self.TikTokWebCrawler.fetch_one_video(aweme_id)
+        #     # data = data.get("itemInfo").get("itemStruct")
+        #
+        #     data = await self.TikTokAPPCrawler.fetch_one_video(aweme_id)
             # $.imagePost exists if aweme_type is photo
-            aweme_type = data.get("aweme_type")
+            # aweme_type = data.get("aweme_type")
         # 解析Bilibili视频/Parse Bilibili video
-        elif "bilibili" in url or "b23.tv" in url:
+        if "bilibili" in url or "b23.tv" in url:
             platform = "bilibili"
             aweme_id = await self.get_bilibili_bv_id(url)  # BV号作为统一的video_id
             response = await self.BilibiliWebCrawler.fetch_one_video(aweme_id)

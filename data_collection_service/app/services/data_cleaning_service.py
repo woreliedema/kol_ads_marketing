@@ -1,7 +1,10 @@
 import json
-from datetime import datetime
+import re
+from datetime import datetime,timezone, timedelta
 from typing import List, Dict, Any
+from data_collection_service.crawlers.utils.logger import logger
 
+TZ_SHANGHAI = timezone(timedelta(hours=8))
 
 class DataCleaningService:
     """
@@ -30,9 +33,9 @@ class DataCleaningService:
     @staticmethod
     def _safe_datetime(timestamp: Any) -> datetime:
         try:
-            return datetime.fromtimestamp(int(timestamp))
+            return datetime.fromtimestamp(int(timestamp),tz=TZ_SHANGHAI)
         except (ValueError, TypeError):
-            return datetime.now()
+            return datetime.now(tz=TZ_SHANGHAI)
 
     # 辅助函数：将 "05:20" 或 "01:05:20" 转化为秒数
     @staticmethod
@@ -365,7 +368,104 @@ class DataCleaningService:
             'is_steins_gate': cls._safe_int(raw_data.get('is_steins_gate')),
             'season_id': cls._safe_int(raw_data.get('season_id')),
             'season_title': cls._safe_string(meta_data.get('title')),
-            'pubdate': cls._safe_datetime(raw_data.get('pubdate')),
-            'pubdate_ts': cls._safe_int(raw_data.get('pubdate'))
+            'pubdate': cls._safe_datetime(raw_data.get('created')),
+            'pubdate_ts': cls._safe_int(raw_data.get('created'))
         }
         return video_data
+
+    @classmethod
+    def clean_and_flatten_asr_data(cls, ai_workflow_response, bvid: str, cid: str, batch_id: str) -> List[Dict]:
+        """
+        极客级数据裁剪：舍弃 100KB 的字级冗余，只提取句子级时间轴，准备压入 ClickHouse
+        """
+        if not ai_workflow_response:
+            return []
+
+        if isinstance(ai_workflow_response, str):
+            try:
+                ai_workflow_response = json.loads(ai_workflow_response)
+            except json.JSONDecodeError as e:
+                logger.error(f"[DataCleaning] 最外层 ai_workflow_response 无法解析为 JSON: {e}")
+                return []
+
+        if not isinstance(ai_workflow_response, dict):
+            logger.error(f"[DataCleaning] 数据类型异常，期望 dict，实际得到 {type(ai_workflow_response)}")
+            return []
+
+        if ai_workflow_response.get("code") != 0:
+            logger.error(f"[DataCleaning] Coze API 调用失败: {ai_workflow_response.get('msg')}")
+            return []
+
+        actual_data = {}
+        inner_data_payload = ai_workflow_response.get("data")
+        if inner_data_payload:
+            if isinstance(inner_data_payload, str):
+                try:
+                    # 将嵌套的 JSON 字符串反序列化为真实的字典
+                    actual_data = json.loads(inner_data_payload)
+                except json.JSONDecodeError as e:
+                    logger.error(f"[DataCleaning] 解析 Coze data 内部字符串失败: {e}")
+                    return []
+            elif isinstance(inner_data_payload, dict):
+                # 防御性编程：万一哪天 Coze 官方不转字符串了，直接给 dict，我们也能接住
+                actual_data = inner_data_payload
+        else:
+            logger.error(f"[DataCleaning] Coze API 成功但 data 字段为空")
+            return []
+
+        success_flag = actual_data.get("success")
+        is_success = success_flag in (True, 1, "True", "true") or actual_data.get("raw_response", {}).get("code") == 0
+        if not is_success:
+            logger.warning(f"[DataCleaning] ASR 节点返回业务层面失败: {actual_data}")
+            return []
+
+        # 核心只取 timeline 里的 timelines 数组
+        timelines = actual_data.get("timeline", {}).get("timelines", [])
+        # 兜底：如果 API 没返回 timelines 列表
+        if not timelines or not isinstance(timelines, list):
+            logger.warning(f"[DataCleaning] 未找到有效的 timelines 数组，可能是纯音乐或无字幕视频。")
+            return []
+        invalid_text_pattern = re.compile(r'^[\W_]+$')
+        cleaned_subtitles = []
+        for item in timelines:
+            raw_text = item.get("text") or ""
+            text = raw_text.strip()
+            # 过滤掉极短无意义语气词（可选优化）
+            if not text or invalid_text_pattern.match(text):
+                continue
+
+            cleaned_subtitles.append({
+                "bvid": cls._safe_string(bvid),
+                "cid": cls._safe_int(cid),
+                "batch_id": cls._safe_int(batch_id),
+                "start_time_us": cls._safe_int(item.get("start_time")),  # 微秒级
+                "end_time_us": cls._safe_int(item.get("end_time")),  # 微秒级
+                "text": cls._safe_string(item.get("text", "").strip())
+            })
+
+        return cleaned_subtitles
+
+    @classmethod
+    def clean_video_ai_analysis(cls, ai_workflow_response: dict, bvid: str, cid: str, batch_id: str) -> list[dict]:
+        """
+        清洗 B 站视频大模型商单分析结果，准备入库 ClickHouse
+        支持成功时的结果清洗，以及失败时的异常记录清洗
+        """
+        final_report = ai_workflow_response or {}
+
+        # 严格约束卖点为列表类型，防止大模型抽风返回字符串导致入库崩溃
+        selling_points = final_report.get("selling_points", [])
+        if not isinstance(selling_points, list):
+            selling_points = []
+
+        cleaned_data = {
+            "bvid": cls._safe_string(bvid),
+            "cid": cls._safe_int(cid),
+            "batch_id": cls._safe_int(batch_id),
+            "brand_name": cls._safe_string(final_report.get("brand_name", "无商单")),
+            "product_name": cls._safe_string(final_report.get("product_name", "无商单")),
+            "selling_points": selling_points,
+            "raw_ai_response": cls._safe_string(final_report.get("raw_ai_response", "")),
+        }
+
+        return [cleaned_data]

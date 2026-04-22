@@ -59,13 +59,13 @@ export default function BaseLayout() {
                 <div className="h-16 flex items-center px-6 border-b border-slate-800">
                     <div className="flex items-center gap-2">
                         <div className="w-3 h-3 bg-cyan-400 rounded-sm animate-pulse shadow-[0_0_10px_rgba(34,211,238,0.6)]"></div>
-                        <span className="text-slate-100 font-bold tracking-widest text-lg">KOL_MATRIX</span>
+                        <span className="text-slate-100 font-bold tracking-widest text-lg">红人营销矩阵</span>
                     </div>
                 </div>
 
                 {/* 导航链路映射 */}
                 <nav className="flex-1 py-6 px-4 space-y-2 overflow-y-auto">
-                    <div className="text-slate-600 text-[10px] mb-4 pl-2 tracking-widest">$&gt; NAV_SYSTEM</div>
+                    <div className="text-slate-600 text-[10px] mb-4 pl-2 tracking-widest">菜单栏</div>
 
                     {navItems.map((item) => {
                         const isActive = location.pathname.startsWith(item.path);

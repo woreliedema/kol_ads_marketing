@@ -33,6 +33,18 @@ class StorageService:
             logger.error(f"[ClickHouse] 写入 {table_name} 失败: {str(e)}", exc_info=True)
             return False
 
+    async def query_clickhouse(self,query: str):
+        try:
+            async with self.ch.cursor(cursor=DictCursor) as cursor:
+                await cursor.execute(query)
+                data = await cursor.fetchall()
+            if not data:
+                return []
+            return data  # 返回包含所有字典的完整列表
+        except Exception as e:
+            logger.error(f"[ClickHouse] sql执行失败: {str(e)}")
+            raise e
+
     async def search_data_from_clickhouse(self, table_name: str, query_req: ComplexSearchRequest) -> dict:
         """
         通用复杂查询接口

@@ -47,6 +47,3 @@ export const clearUnreadApi = (targetId: string) => {
         target_id: targetId
     });
 };
-
-// (预留) 3. 发送消息接口 (如果是 HTTP 降级方案，或者是后续 WebSocket 的鉴权前置)
-// export const sendMessageApi = ...

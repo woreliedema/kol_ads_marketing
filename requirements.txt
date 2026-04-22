@@ -21,3 +21,4 @@ rich
 browser-cookie3
 importlib-resources
 nacos-sdk-python>=2.0.0
+minio

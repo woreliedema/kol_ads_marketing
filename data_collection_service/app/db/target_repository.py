@@ -6,7 +6,7 @@ from data_collection_service.app.db.models import CrawlerTarget
 from data_collection_service.crawlers.utils.logger import logger
 
 
-def cascade_register_videos_to_target(uid: str, platform_type: int, bvid_list: list, interval_minutes: int = 720):
+def cascade_register_videos_to_target(uid: str, platform_type: int, bvid_list: list, r_type: str, interval_minutes: int = 720):
     """
     专门用于级联写入新视频 ID 到调度总表，自我管理 DB Session。
     遇到老数据仅保持激活，绝不重置下一次调度时间！
@@ -17,18 +17,17 @@ def cascade_register_videos_to_target(uid: str, platform_type: int, bvid_list: l
     now = datetime.now()
     values_to_insert = []
 
-    # 同时给新视频注册“详情”和“评论”任务
+    # 同时给新视频注册“详情”任务
     for bvid in bvid_list:
-        for r_type in ["scrape_and_store_video_info", "scrape_and_store_video_comments"]:
-            values_to_insert.append({
-                "platform_type": platform_type,
-                "uid": uid,
-                "resource_type": r_type,
-                "target_id": bvid,
-                "cron_interval_minutes": interval_minutes,
-                "is_active": True,
-                "next_run_time": now  # 仅对首次 Insert 生效，新视频立刻跑
-            })
+        values_to_insert.append({
+            "platform_type": platform_type,
+            "uid": uid,
+            "resource_type": r_type,
+            "target_id": bvid,
+            "cron_interval_minutes": interval_minutes,
+            "is_active": True,
+            "next_run_time": now  # 仅对首次 Insert 生效，新视频立刻跑
+        })
 
     # 创建独立的数据库会话
     db = SessionLocal()

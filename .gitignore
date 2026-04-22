@@ -22,3 +22,6 @@ logs/
 *.JPG
 *.JPEG
 *.PNG
+
+# ========== 本地minio空间文件 ==========
+deploy/data/minio_data/

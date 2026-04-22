@@ -146,5 +146,5 @@ app.include_router(router)
 
 if __name__ == "__main__":
     import uvicorn
-    # 本地调试启动命令，对应文档中的 uvicorn data_collection_service.app.main:app --reload --host 0.0.0.0 --port 8000
-    uvicorn.run("data_collection_service.app.main:app", host="0.0.0.0", port=8000, reload=True)
+    # 本地调试启动命令，对应文档中的 uvicorn data_collection_service.app.main:app --host 0.0.0.0 --port 8000
+    uvicorn.run("data_collection_service.app.main:app", host="0.0.0.0", port=8000, reload=False)
