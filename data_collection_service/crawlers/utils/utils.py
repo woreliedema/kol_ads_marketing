@@ -8,7 +8,7 @@ import importlib_resources
 
 from pydantic import BaseModel
 
-from urllib.parse import quote, urlencode  # URL编码
+from urllib.parse import urlencode  # URL编码
 from typing import Union, List, Any
 from pathlib import Path
 

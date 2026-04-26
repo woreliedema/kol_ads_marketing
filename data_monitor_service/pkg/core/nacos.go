@@ -22,11 +22,11 @@ func InitNacos() func() {
 	host := utils.GetEnv("NACOS_HOST", "127.0.0.1")
 	port := uint64(utils.GetEnvInt("NACOS_PORT", 8848))
 	namespaceId := utils.GetEnv("NACOS_NAMESPACE", "public")
-	serviceName := utils.GetEnv("SERVICE_NAME", "data-monitor.ts-service")
-	ip := utils.GetEnv("SERVICE_IP", "127.0.0.1")
+	serviceName := utils.GetEnv("MONITOR_SERVICE_NAME", "data-monitor-service")
+	ip := utils.GetEnv("MONITOR_SERVICE_IP", "127.0.0.1")
 
 	// 获取本微服务监听的端口
-	serverPortStr := utils.GetEnv("MONITOR_SERVICE_PORT", "8002")
+	serverPortStr := utils.GetEnv("MONITOR_SERVICE_PORT", "8083")
 	svcPort, _ := strconv.ParseUint(serverPortStr, 10, 64)
 
 	groupName := utils.GetEnv("NACOS_GROUP", "DEFAULT_GROUP")

@@ -20,11 +20,13 @@ async def update_platform_cookie(
         # 如果是测试回调，直接返回成功
         if payload.test:
             return ResponseModel(code=200, router=request.url.path, data={"message": "Test successful"})
+        if payload.platform and payload.platform != platform_name:
+            platform_name = payload.platform
 
         # 根据路径参数 platform_name 分发逻辑
         if platform_name == "bilibili":
             crawler = BilibiliWebCrawler()
-            await crawler.update_cookie(payload.cookie)
+            await crawler.update_cookie(payload.cookie,payload.browser_id)
         # elif platform_name == "douyin":
         #     crawler = DouyinWebCrawler()
         #     await crawler.update_cookie(payload.cookie)

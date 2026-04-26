@@ -1,4 +1,3 @@
-import asynch
 from asynch.pool import Pool
 from typing import AsyncGenerator
 from asynch.connection import Connection

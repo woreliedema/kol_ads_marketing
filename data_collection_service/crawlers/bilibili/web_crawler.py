@@ -7,6 +7,7 @@ import yaml  # 配置文件
 from data_collection_service.crawlers.base_crawler import BaseCrawler
 from data_collection_service.crawlers.bilibili.endpoints import BilibiliAPIEndpoints
 from data_collection_service.app.db.redis_client import redis_client_mgr
+from data_collection_service.app.db.cookie_scheduler import cookie_scheduler_mgr
 # 哔哩哔哩工具类
 from data_collection_service.crawlers.bilibili.utils import EndpointGenerator, bv2av, ResponseAnalyzer
 # 数据请求模型
@@ -22,6 +23,8 @@ with open(f"{path}/config.yaml", "r", encoding="utf-8") as f:
 
 class BilibiliWebCrawler:
     def __init__(self):
+        self.platform = "bilibili"
+        self.current_browser_id = None
         pass
 
     @property
@@ -37,12 +40,19 @@ class BilibiliWebCrawler:
     # 优先从Redis获取cookie，如无法获取再从配置文件读取哔哩哔哩请求头
     async def get_bilibili_headers(self):
         bili_config = config['TokenManager']['bilibili']
+        current_cookie = None
         # 1. 尝试从 Redis 获取最新的 Cookie
         try:
-            redis_cookie = await self.redis.get("cookie:bilibili")
-            if redis_cookie:
-                current_cookie = redis_cookie
-                # print("使用了 Redis 中的 Cookie")
+            self.current_browser_id = await cookie_scheduler_mgr.get_optimal_browser_id(
+                redis_pool=self.redis,
+                platform=self.platform,
+                base_cooldown=10
+            )
+            if self.current_browser_id:
+                hash_key = f"cookie_info:{self.platform}:{self.current_browser_id}"
+                cookie_bytes = await self.redis.hget(hash_key, "cookie_str")
+                if cookie_bytes:
+                    current_cookie = cookie_bytes.decode('utf-8') if isinstance(cookie_bytes, bytes) else cookie_bytes
             else:
                 # Redis 没数据，使用配置文件的默认值
                 current_cookie = bili_config["headers"]["cookie"]
@@ -327,26 +337,36 @@ class BilibiliWebCrawler:
             response = await crawler.fetch_get_json(endpoint)
         return response
 
-    async def update_cookie(self, cookie: str):
+    async def update_cookie(self, cookie: str, browser_id: str):
         """
         更新指定服务的Cookie
 
         Args:
-            cookie: 新的Cookie值
+            :param cookie: 新的Cookie值
+            :param browser_id:
         """
-        service = "bilibili"
-        redis_key = f"cookie:{service}"
+        self.platform = "bilibili"
+        hash_key = f"cookie_info:{self.platform}:{browser_id}"
+        zset_key = f"cookie_pool:{self.platform}"
+        now_ts = int(time.time())
 
         try:
             # 1. 写入 Redis (设置过期时间，例如 24小时，也可以不设置)
-            await self.redis.set(redis_key, cookie)
-            print(f"✅ {service} Cookie 已成功更新到 Redis")
+            mapping = {
+                "cookie_str": cookie,
+                "last_update": now_ts,
+                "fail_count": 0,
+                "status": "active"
+            }
+            await self.redis.hset(hash_key, mapping=mapping)
+            await self.redis.zadd(zset_key, {browser_id: float(now_ts)})
+            print(f"✅ [{self.platform}] 边缘节点 {browser_id[:8]}... 的 Cookie 已成功刷活并纳入调度池")
 
             # 2. (可选) 同时更新内存中的 config 变量，保证当前进程无需再次请求 Redis
-            config["TokenManager"][service]["headers"]["cookie"] = cookie
+            # config["TokenManager"][service]["headers"]["cookie"] = cookie
 
         except Exception as e:
-            print(f"❌ 更新 Cookie 到 Redis 失败: {e}")
+            print(f"❌ [{self.platform}] 更新边缘节点 {browser_id[:8]}... 到 Redis 失败: {e}")
 
     "-------------------------------------------------------utils接口列表-------------------------------------------------------"
 

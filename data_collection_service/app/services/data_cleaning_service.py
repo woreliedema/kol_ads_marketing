@@ -1,7 +1,8 @@
 import json
 import re
-from datetime import datetime,timezone, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import List, Dict, Any
+
 from data_collection_service.crawlers.utils.logger import logger
 
 TZ_SHANGHAI = timezone(timedelta(hours=8))

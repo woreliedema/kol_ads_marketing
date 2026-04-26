@@ -1,7 +1,13 @@
 # 1. 使用 Python 3.10 作为基础镜像
 FROM python:3.10-slim
 
-RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
+    curl \
+    && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+    && apt-get install -y nodejs \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 # 2. 设置容器内的工作目录
 WORKDIR /app
 
@@ -12,6 +18,8 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 # 将 /app 加入 PYTHONPATH，确保能正确导入 data_collection_service 模块
 ENV PYTHONPATH=/app
+# 显式设置时区为上海，确保采集入库的时间戳准确
+ENV TZ=Asia/Shanghai
 
 # 4. 复制依赖文件并安装
 COPY requirements.txt .
@@ -19,10 +27,10 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/
 
 # 5. 复制整个项目代码到容器中
-COPY . .
+COPY .. .
 
 # 6. 暴露端口
 EXPOSE 8000
 
 # 7. 启动命令
-CMD ["python", "-m", "uvicorn", "data_collection_service.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

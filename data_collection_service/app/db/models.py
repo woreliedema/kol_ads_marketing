@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, SmallInteger, DateTime, BIGINT, Index, Boolean, JSON
+from sqlalchemy import Column, Integer, String, Text, SmallInteger, DateTime, BIGINT, Boolean, JSON
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.schema import UniqueConstraint
 from datetime import datetime

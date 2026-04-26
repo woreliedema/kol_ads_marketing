@@ -1,8 +1,8 @@
 services:
-  backend_service:
+  data_collection_service:
     # 构建上下文：指向项目根目录 (根据 docker-compose.yml 所在位置，如果是 deploy 目录，则根目录是上一级)
     build:
-      context: ../
+      context: ../data_collection_service
       dockerfile: Dockerfile
     container_name: data_collection_service
     restart: always
@@ -12,7 +12,7 @@ services:
       # 关键配置：让 Python 代码知道 Redis 的主机名是 'redis' (对应下方的服务名)
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - NACOS_HOST=nacos  # [新增] 确保代码能读到这个 host
+      - NACOS_HOST=nacos  # 确保代码能读到这个 host
       - NACOS_PORT=8848
       # 数据库连接信息 (根据您的 settings 修改)
       - MYSQL_HOST=mysql
@@ -27,9 +27,9 @@ services:
       - kafka
     volumes:
       # 挂载代码目录，方便调试（可选）
-      - ../data_collection_service:/app/data_collection_service
+      - ../data_collection_service:/app
       # 挂载日志目录
-      - ./logs:/app/logs
+      - ./logs/data_collection:/app/logs
   user_center:
     build:
       context: ../user_center
@@ -54,6 +54,81 @@ services:
       - mysql
       - redis
       - nacos
+  match_system:
+    build:
+      context: ../match_system_service
+      dockerfile: Dockerfile
+    container_name: kol_match_system
+    restart: always
+    ports:
+      - "8082:8082"
+    environment:
+      # 注入所有依赖的中间件地址（对接你的 getEnv 获取逻辑）
+      - NACOS_HOST=nacos
+      - NACOS_PORT=8848
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+      - ES_HOST=elasticsearch
+      - ES_PORT=9200
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      # 注册给 Nacos 的真实容器 IP (必须对应我们上面修复的 Bug)
+      - MATCH_SYSTEM_IP=kol_match_system
+      - MATCH_SYSTEM_PORT=8082
+      - MATCH_SYSTEM_NAME=match-system-service
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+    depends_on:
+      - nacos
+      - mysql
+      - redis
+      - elasticsearch
+      - kafka
+  data_monitor_service:
+    build:
+      context: ../data_monitor_service
+      dockerfile: Dockerfile
+    container_name: kol_data_monitor
+    restart: always
+    ports:
+      - "8083:8083"
+    environment:
+      # 基础组件连接
+      - CLICKHOUSE_HOST=clickhouse
+      - REDIS_HOST=redis
+      - NACOS_HOST=nacos
+      - NACOS_PORT=8848
+      # 服务注册配置
+      - MONITOR_SERVICE_PORT=8083
+      - MONITOR_SERVICE_NAME=data-monitor-service
+      # 🔴 核心配置：确保服务注册到 Nacos 时使用的是容器名
+      - MONITOR_SERVICE_IP=kol_data_monitor
+      # 认证配置
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+    depends_on:
+      - clickhouse
+      - redis
+      - nacos
+    volumes:
+      # 挂载日志目录，方便后续进行 AI 洞察分析或排错
+      - ./logs/monitor:/app/logs
+  frontend:
+    build:
+      # 构建上下文指向前端项目的根目录
+      context: ../kol_ads_frontend
+      dockerfile: Dockerfile
+    container_name: kol_ads_frontend
+    restart: always
+    ports:
+      # 将宿主机的 3000 端口映射到容器内 Nginx 的 80 端口
+      # 这样你在浏览器里依然访问 http://localhost:3000
+      - "3000:80"
+    depends_on:
+      # 确保后端的四大核心微服务都启动后，再拉起前端
+      - data_collection_service
+      - user_center
+      - match_system
+      - data_monitor_service
   # 关系型数据库：存储核心结构化数据
   mysql:
     image: mysql:8.0
@@ -62,7 +137,7 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: root_password
       MYSQL_DATABASE: KOL_platform
-        - TZ=Asia/Shanghai
+      TZ: Asia/Shanghai
     command:
       - --default-time-zone=+08:00
     ports:
@@ -79,18 +154,6 @@ services:
     restart: always
     ports:
       - "6379:6379"
-
-  # 非关系型数据库：存储各平台差异化的红人字段
-  mongodb:
-    image: mongo:6.0
-    container_name: mongodb_6.0
-    restart: always
-    ports:
-      - "27017:27017"
-    volumes:
-      # 修改点：使用具名卷 mongo_data
-      - mongo_data:/data/db
-#      - ./data/mongo:/data/db
 
   # 时序数据库：存储视频播放/互动监控数据
   clickhouse:
@@ -187,7 +250,6 @@ services:
       - es_data:/usr/share/elasticsearch/data
 volumes:
   mysql_data:
-  mongo_data:
   clickhouse_data:
   es_data:
   # redis_data:

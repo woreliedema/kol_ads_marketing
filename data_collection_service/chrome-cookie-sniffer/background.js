@@ -1,6 +1,18 @@
 // 启动时记录
 console.log('Cookie Sniffer service worker 已启动');
 
+// --- 初始化获取或生成 browser_id ---
+let BROWSER_ID = null;
+chrome.storage.local.get(['browser_id'], function(result) {
+    if (result.browser_id) {
+        BROWSER_ID = result.browser_id;
+    } else {
+        // 生成标准的 UUID 作为浏览器唯一标识
+        BROWSER_ID = crypto.randomUUID();
+        chrome.storage.local.set({ browser_id: BROWSER_ID });
+    }
+    console.log('当前边缘节点 Browser ID:', BROWSER_ID);
+});
 // 服务配置
 const SERVICES = {
   douyin: {
@@ -92,7 +104,6 @@ async function saveCookieData(serviceName, url, cookie, source = 'headers') {
   
   console.log(`${serviceName}: Cookie已保存`);
 }
-
 // Webhook回调
 async function sendWebhook(serviceName, cookie) {
   chrome.storage.local.get(['webhookUrl'], function(result) {
@@ -102,6 +113,8 @@ async function sendWebhook(serviceName, cookie) {
       const targetUrl = `${baseUrl}/platforms/${serviceName}/cookie`;
 
       const payload = {
+        platform: serviceName,    // 新增：明确所属平台
+        browser_id: BROWSER_ID,   // 新增：所属浏览器ID
         cookie: cookie,
         timestamp: new Date().toISOString()
       };

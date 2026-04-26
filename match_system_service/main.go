@@ -105,7 +105,7 @@ func main() {
 		NamespaceId: getEnv("NACOS_NAMESPACE", "public"),
 		// 这里改为匹配服务的默认名称
 		ServiceName: getEnv("MATCH_SYSTEM_NAME", "match-system-service"),
-		Ip:          getEnv("MATCH_SYSTEM_PORT", "127.0.0.1"),
+		Ip:          getEnv("MATCH_SYSTEM_IP", "127.0.0.1"),
 		ServicePort: svcPort,
 		Weight:      1.0,
 		GroupName:   getEnv("NACOS_GROUP", "DEFAULT_GROUP"),

@@ -1,7 +1,7 @@
 import os
 import httpx
 import json
-from typing import Optional, Any, Tuple
+from typing import Optional, Any
 from data_collection_service.crawlers.utils.logger import logger
 
 

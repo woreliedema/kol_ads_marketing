@@ -1,6 +1,6 @@
 from datetime import datetime
 from sqlalchemy.dialects.mysql import insert
-# 假设你在 app.db.session 中定义了 SessionLocal
+
 from data_collection_service.app.db.session import SessionLocal
 from data_collection_service.app.db.models import CrawlerTarget
 from data_collection_service.crawlers.utils.logger import logger
