@@ -15,13 +15,15 @@ logs/
 **/logs/
 *.log
 
+# 中间uploads文件夹
+/uploads/
 # ========== 图片文件 ==========
-*.jpg
-*.jpeg
-*.png
-*.JPG
-*.JPEG
-*.PNG
+#*.jpg
+#*.jpeg
+#*.png
+#*.JPG
+#*.JPEG
+#*.PNG
 
 # ========== 本地minio空间文件 ==========
 deploy/data/minio_data/
