@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"github.com/cloudwego/hertz/pkg/common/hlog"
 	"github.com/google/uuid"
-	"os"
+	"github.com/minio/minio-go/v7"
+	"kol_ads_marketing/user_center/app/core"
+	"kol_ads_marketing/user_center/app/utils"
 	"path/filepath"
 	"strings"
 
@@ -201,28 +203,54 @@ func UploadAvatar(c context.Context, ctx *app.RequestContext) {
 
 	// 5. 生成极其安全的防冲突文件名 (UUID)
 	newFileName := fmt.Sprintf("%s%s", uuid.New().String(), ext)
+	// MinIO 中的相对路径
+	objectName := fmt.Sprintf("avatars/%s", newFileName)
 
-	// 确保本地有个存放目录 (模拟 OSS bucket)
-	uploadDir := "./uploads/avatars/"
-	if err := os.MkdirAll(uploadDir, os.ModePerm); err != nil {
-		hlog.CtxErrorf(c, "创建上传目录失败: %v", err)
+	file, err := fileHeader.Open()
+	if err != nil {
+		hlog.CtxErrorf(c, "打开文件流失败: %v", err)
+		response.Error(ctx, response.ErrSystemError)
+		return
+	}
+	//defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			hlog.CtxWarnf(c, "关闭文件流失败: %v", closeErr)
+		}
+	}()
+	contentType := "image/jpeg"
+	if ext == ".png" {
+		contentType = "image/png"
+	}
+
+	_, err = core.MinioClient.PutObject(c, core.BucketName, objectName, file, fileHeader.Size, minio.PutObjectOptions{
+		ContentType: contentType,
+	})
+	if err != nil {
+		hlog.CtxErrorf(c, "上传文件到 MinIO 失败: %v", err)
 		response.Error(ctx, response.ErrSystemError)
 		return
 	}
 
-	savePath := filepath.Join(uploadDir, newFileName)
-
-	// 6. 核心动作：把文件保存到本地硬盘 (未来这里换成上传到 OSS)
-	if err := ctx.SaveUploadedFile(fileHeader, savePath); err != nil {
-		hlog.CtxErrorf(c, "保存文件到本地失败: %v", err)
-		response.Error(ctx, response.ErrSystemError)
-		return
-	}
+	//// 确保本地有个存放目录 (模拟 OSS bucket)
+	//uploadDir := "./uploads/avatars/"
+	//if err := os.MkdirAll(uploadDir, os.ModePerm); err != nil {
+	//	hlog.CtxErrorf(c, "创建上传目录失败: %v", err)
+	//	response.Error(ctx, response.ErrSystemError)
+	//	return
+	//}
+	//savePath := filepath.Join(uploadDir, newFileName)
+	//// 6. 核心动作：把文件保存到本地硬盘 (未来这里换成上传到 OSS)
+	//if err := ctx.SaveUploadedFile(fileHeader, savePath); err != nil {
+	//	hlog.CtxErrorf(c, "保存文件到本地失败: %v", err)
+	//	response.Error(ctx, response.ErrSystemError)
+	//	return
+	//}
 
 	// 7. 拼接出一个能让前端直接访问的 URL (假设你的服务跑在 8081)
 	// 在生产环境中，这应该是一个 CDN 域名，如 https://cdn.yourdomain.com/avatars/...
 	// 只存储绝对 URI 路径
-	avatarURL := fmt.Sprintf("/uploads/avatars/%s", newFileName)
+	avatarURL := fmt.Sprintf("/%s/%s", core.BucketName, objectName)
 
 	// 🚀 8. 业务入库：调用 Service 更新数据库，并挂上 7 天的锁！
 	if err := service.UpdateUserAvatar(c, userID, role, avatarURL); err != nil {
@@ -280,26 +308,54 @@ func UploadBusinessLicense(c context.Context, ctx *app.RequestContext) {
 
 	// 4. 生成防冲突文件名
 	newFileName := fmt.Sprintf("%s%s", uuid.New().String(), ext)
+	objectName := fmt.Sprintf("licenses/%s", newFileName)
+	file, err := fileHeader.Open()
+	if err != nil {
+		hlog.CtxErrorf(c, "打开资质文件流失败: %v", err)
+		response.Error(ctx, response.ErrSystemError)
+		return
+	}
+	//defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			hlog.CtxWarnf(c, "关闭文件流失败: %v", closeErr)
+		}
+	}()
 
-	// 核心架构：机密资质必须与普通头像物理隔离
-	uploadDir := "./uploads/licenses/"
-	if err := os.MkdirAll(uploadDir, os.ModePerm); err != nil {
-		hlog.CtxErrorf(c, "创建资质上传目录失败: %v", err)
+	contentType := "image/jpeg"
+	if ext == ".png" {
+		contentType = "image/png"
+	}
+
+	// 5. 将文件流直接推送至 MinIO，物理隔离在 licenses 目录下
+	_, err = core.MinioClient.PutObject(c, core.BucketName, objectName, file, fileHeader.Size, minio.PutObjectOptions{
+		ContentType: contentType,
+	})
+	if err != nil {
+		hlog.CtxErrorf(c, "保存资质文件到 MinIO 失败: %v", err)
 		response.Error(ctx, response.ErrSystemError)
 		return
 	}
 
-	savePath := filepath.Join(uploadDir, newFileName)
-
-	// 5. 保存文件到本地
-	if err := ctx.SaveUploadedFile(fileHeader, savePath); err != nil {
-		hlog.CtxErrorf(c, "保存资质文件失败: %v", err)
-		response.Error(ctx, response.ErrSystemError)
-		return
-	}
+	//// 核心架构：机密资质必须与普通头像物理隔离
+	//uploadDir := "./uploads/licenses/"
+	//if err := os.MkdirAll(uploadDir, os.ModePerm); err != nil {
+	//	hlog.CtxErrorf(c, "创建资质上传目录失败: %v", err)
+	//	response.Error(ctx, response.ErrSystemError)
+	//	return
+	//}
+	//
+	//savePath := filepath.Join(uploadDir, newFileName)
+	//
+	//// 5. 保存文件到本地
+	//if err := ctx.SaveUploadedFile(fileHeader, savePath); err != nil {
+	//	hlog.CtxErrorf(c, "保存资质文件失败: %v", err)
+	//	response.Error(ctx, response.ErrSystemError)
+	//	return
+	//}
 
 	// 6. 生成绝对 URI (依靠我们之前配好的 h.Static("/uploads", "./"))
-	licenseURL := fmt.Sprintf("/uploads/licenses/%s", newFileName)
+	licenseURL := fmt.Sprintf("/%s/%s", core.BucketName, objectName)
 
 	// 7. 下推给 Service 入库
 	if err := service.UpdateBrandLicenseService(c, userID, licenseURL); err != nil {
@@ -349,8 +405,17 @@ func DeleteBusinessLicense(c context.Context, ctx *app.RequestContext) {
 	userIDAny, _ := ctx.Get("user_id")
 	userID := userIDAny.(uint64)
 
-	// 3. 核心下推：将 userID 和 前端传来的密码 扔给 Service 处理
-	if err := service.DeleteBrandLicenseService(c, userID, req.Password); err != nil {
+	// 3. 核心边界防御：解密 RSA 密文并防重放
+	realPassword, err := utils.DecryptAndValidatePassword(req.Password)
+	if err != nil {
+		hlog.CtxWarnf(c, "[安全拦截] 资质销毁接口接收到非法口令, UID: %d, Err: %v", userID, err)
+		// 直接抛出 400，前端的 catch 块会捕获到这个提示
+		response.ErrorWithMsg(ctx, response.ErrBadRequest, "安全校验失败：指令过期或被篡改")
+		return
+	}
+
+	// 4. 核心下推：将 userID 和 前端传来的密码 扔给 Service 处理
+	if err := service.DeleteBrandLicenseService(c, userID, realPassword); err != nil {
 		var apiErr *response.APIError
 		if errors.As(err, &apiErr) {
 			response.Error(ctx, apiErr)
@@ -360,7 +425,7 @@ func DeleteBusinessLicense(c context.Context, ctx *app.RequestContext) {
 		return
 	}
 
-	// 4. 成功返回
+	// 5. 成功返回
 	response.Success(ctx, map[string]interface{}{
 		"message": "敏感资质已安全物理销毁",
 	})

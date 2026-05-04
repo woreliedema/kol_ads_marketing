@@ -19,5 +19,6 @@ python-dotenv==1.2.2
 rich==14.3.3
 browser-cookie3
 importlib-resources
-nacos-sdk-python==3.0.4
+nacos-sdk-python==2.0.11
 minio==7.2.20
+protobuf>=3.20.3

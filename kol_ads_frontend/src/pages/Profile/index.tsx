@@ -151,16 +151,34 @@ export default function Profile() {
         e.preventDefault();
         setIsDeletingLicense(true);
         try {
-            const res: any = await deleteBrandLicenseApi({ password: licenseDeletePassword });
+            // 获取后端动态公钥
+            const pkRes: any = await getPublicKeyApi();
+            if (pkRes.code !== 0) {
+                alert('[SECURE_ERR] 安全环境初始化失败，请重试');
+                return;
+            }
+            const publicKey = pkRes.data.public_key;
+            // RSA 融合时间戳高强度加密
+            const encryptedPassword = encryptPassword(licenseDeletePassword, publicKey);
+            if (!encryptedPassword) {
+                alert('[SECURE_ERR] 加密引擎异常，数据链终止');
+                return;
+            }
+            console.log('[SYS_SEC] 正在发送加密销毁指令...');
+            // 带着密文发起致命打击 (销毁指令)
+            const res: any = await deleteBrandLicenseApi({
+                password: encryptedPassword // 禁止明文，替换为密文
+            });
             if (res.code === 0 || res.code === 200) {
+                alert('资质文件已从服务器物理隔离并安全销毁');
                 setIsDeleteLicenseModalOpen(false);
-                setLicenseDeletePassword(''); // 清空密码
-                fetchUserData(); // 刷新大盘数据，执照会恢复成未上传状态
+                setLicenseDeletePassword(''); // 物理清空本地密码缓存
+                fetchUserData(); // 重新拉取大盘，确保证书槽位已空
             } else {
-                alert(res.message || res.msg || '销毁失败');
+                alert(`[SYS_ERR] ${res.message || res.msg || '销毁指令执行失败'}`);
             }
         } catch (err: any) {
-            alert(err.message || err.msg || '网络异常');
+            alert(`[NET_ERR] ${err.message || err.msg || '网络异常'}`);
         } finally {
             setIsDeletingLicense(false);
         }
@@ -614,7 +632,7 @@ export default function Profile() {
                                                     ) : (
                                                         <>
                                                             <span className="text-xl leading-none text-slate-500 group-hover:text-purple-400 transition-colors">+</span>
-                                                            <span className="text-[10px] mt-2 font-mono text-slate-500 group-hover:text-purple-400 transition-colors">UPLOAD_FILE</span>
+                                                            <span className="text-[10px] mt-2 font-mono text-slate-500 group-hover:text-purple-400 transition-colors">上传文件</span>
                                                         </>
                                                     )}
                                                 </div>
@@ -737,10 +755,6 @@ export default function Profile() {
                         <button onClick={() => setIsProfileModalOpen(false)} className="absolute top-4 right-4 text-slate-500 hover:text-red-400 font-mono text-xl">&times;</button>
                         <h2 className={`text-lg font-mono text-${themeColor}-400 border-b border-slate-800 pb-2 mb-6`}>拓展资料修改</h2>
                         <form onSubmit={handleProfileSubmit} className="space-y-4">
-                            {/*<div>*/}
-                            {/*    <label className="block text-slate-500 text-xs font-mono mb-2">avatar_url (Image Link)</label>*/}
-                            {/*    <input type="text" value={editAvatar} onChange={e => setEditAvatar(e.target.value)} className={`w-full bg-slate-900 border border-slate-700 focus:border-${themeColor}-500 rounded px-3 py-2 text-slate-200 font-mono text-sm outline-none`} />*/}
-                            {/*</div>*/}
 
                             {isKol ? (
                                 <>
@@ -752,10 +766,6 @@ export default function Profile() {
                                         <label className="block text-slate-500 text-xs font-mono mb-2">基础报价 (人民币¥)</label>
                                         <input type="number" value={editQuote} onChange={e => setEditQuote(e.target.value === '' ? '' : Number(e.target.value))} className="w-full bg-slate-900 border border-slate-700 focus:border-cyan-500 rounded px-3 py-2 text-slate-200 font-mono text-sm outline-none" />
                                     </div>
-                                    {/*<div>*/}
-                                    {/*    <label className="block text-slate-500 text-xs font-mono mb-2">领域标签 (用逗号分隔)</label>*/}
-                                    {/*    <input type="text" placeholder="e.g. 游戏, 主播, 美食" value={editTags} onChange={e => setEditTags(e.target.value)} className="w-full bg-slate-900 border border-slate-700 focus:border-cyan-500 rounded px-3 py-2 text-slate-200 font-mono text-sm outline-none" />*/}
-                                    {/*</div>*/}
                                 </>
                             ) : (
                                 <>
@@ -763,10 +773,6 @@ export default function Profile() {
                                         <label className="block text-slate-500 text-xs font-mono mb-2">公司名称</label>
                                         <input type="text" value={editName} onChange={e => setEditName(e.target.value)} className="w-full bg-slate-900 border border-slate-700 focus:border-purple-500 rounded px-3 py-2 text-slate-200 font-mono text-sm outline-none" />
                                     </div>
-                                    {/*<div>*/}
-                                    {/*    <label className="block text-slate-500 text-xs font-mono mb-2">所属行业</label>*/}
-                                    {/*    <input type="text" value={editIndustry} onChange={e => setEditIndustry(e.target.value)} className="w-full bg-slate-900 border border-slate-700 focus:border-purple-500 rounded px-3 py-2 text-slate-200 font-mono text-sm outline-none" />*/}
-                                    {/*</div>*/}
                                 </>
                             )}
 
@@ -840,7 +846,7 @@ export default function Profile() {
                     onClick={() => setIsPreviewModalOpen(false)} // 点击背景关闭
                 >
                     <div className="relative max-w-full max-h-full">
-                        <span className="absolute -top-10 right-0 text-slate-400 font-mono text-sm">[ CLICK_ANYWHERE_TO_CLOSE ]</span>
+                        <span className="absolute -top-10 right-0 text-slate-400 font-mono text-sm">点击空白处关闭</span>
                         <img
                             src={profile.license_url}
                             alt="Full Resolution License"
@@ -864,7 +870,7 @@ export default function Profile() {
                             &times;
                         </button>
                         <h2 className="text-lg font-mono text-red-500 border-b border-slate-800 pb-2 mb-4">
-                            [CRITICAL] DESTROY_SECURE_ASSET
+                            [重要] 删除重要资料
                         </h2>
                         <p className="text-slate-400 text-xs font-mono mb-6 leading-relaxed">
                             警告：您即将从服务器物理擦除企业机密资质。此操作不可逆。为确保实体身份安全，请输入当前连接的登录密码以覆盖保护协议。
@@ -872,14 +878,14 @@ export default function Profile() {
 
                         <form onSubmit={handleDeleteLicenseSubmit} className="space-y-4">
                             <div>
-                                <label className="block text-slate-500 text-xs font-mono mb-2">AUTH_PASSWORD</label>
+                                <label className="block text-slate-500 text-xs font-mono mb-2">密码认证</label>
                                 <input
                                     type="password"
                                     required
                                     value={licenseDeletePassword}
                                     onChange={e => setLicenseDeletePassword(e.target.value)}
                                     className="w-full bg-slate-900 border border-slate-700 focus:border-red-500 rounded px-3 py-2 text-slate-200 font-mono text-sm outline-none"
-                                    placeholder="Enter login password..."
+                                    placeholder="输入账号登录密码..."
                                 />
                             </div>
 
@@ -889,7 +895,7 @@ export default function Profile() {
                                     onClick={() => setIsDeleteLicenseModalOpen(false)}
                                     className="flex-1 py-2 bg-slate-800 border border-slate-700 text-slate-400 hover:text-slate-200 font-mono rounded transition-colors cursor-pointer"
                                 >
-                                    [ ABORT ]
+                                    取消
                                 </button>
                                 <button
                                     disabled={isDeletingLicense}
@@ -897,7 +903,7 @@ export default function Profile() {
                                     className={`flex-1 py-2 bg-red-950/30 border border-red-900 text-red-500 font-mono rounded font-bold transition-all duration-300 cursor-pointer 
                     ${isDeletingLicense ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-900/50 hover:text-red-400 hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] active:scale-95'}`}
                                 >
-                                    {isDeletingLicense ? 'PURGING...' : '[ CONFIRM_PURGE ]'}
+                                    {isDeletingLicense ? 'PURGING...' : '确认删除'}
                                 </button>
                             </div>
                         </form>
@@ -913,7 +919,7 @@ export default function Profile() {
                         {/* Header */}
                         <div className="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-900/50 shrink-0">
                             <div>
-                                <h2 className={`text-lg font-mono text-${themeColor}-400`}>$&gt; ./configure_domain_nodes.sh</h2>
+                                <h2 className={`text-lg font-mono text-${themeColor}-400`}>领域标签</h2>
                                 <p className="text-slate-500 text-xs mt-1">请选择您的核心领域标签 (已选择 {selectedTags.length}/6)</p>
                             </div>
                             {!isFirstLoginIntercept && (
@@ -924,11 +930,11 @@ export default function Profile() {
                         {/* Body: 标签树渲染 */}
                         <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
                             {tagTree.length === 0 ? (
-                                <div className={`text-${themeColor}-500 font-mono text-center py-10 animate-pulse`}>LOADING_DICTIONARY...</div>
+                                <div className={`text-${themeColor}-500 font-mono text-center py-10 animate-pulse`}>加载中...</div>
                             ) : (
                                 tagTree.map(parent => (
                                     <div key={parent.id} className="space-y-3">
-                                        <h3 className="text-slate-400 font-mono text-sm border-b border-slate-800/50 pb-1">## {parent.name}</h3>
+                                        <h3 className="text-slate-400 font-mono text-sm border-b border-slate-800/50 pb-1">{parent.name}</h3>
                                         <div className="flex flex-wrap gap-2.5">
                                             {parent.children?.map(child => {
                                                 const isSelected = selectedTags.includes(child.name);
@@ -959,7 +965,7 @@ export default function Profile() {
                                     onClick={() => setIsTagModalOpen(false)}
                                     className="px-6 py-2 bg-slate-800 border border-slate-700 text-slate-400 hover:text-slate-200 font-mono rounded transition-colors cursor-pointer"
                                 >
-                                    [ SKIP_FOR_NOW ]
+                                    暂时跳过
                                 </button>
                             )}
                             <button

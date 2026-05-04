@@ -27,10 +27,10 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/
 
 # 5. 复制整个项目代码到容器中
-COPY .. .
+COPY . ./data_collection_service
 
 # 6. 暴露端口
 EXPOSE 8000
 
 # 7. 启动命令
-CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "-m", "uvicorn", "data_collection_service.app.main:app", "--host", "0.0.0.0", "--port", "8000"]

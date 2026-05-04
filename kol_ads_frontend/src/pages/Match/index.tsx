@@ -169,7 +169,7 @@ export default function MatchMatrix() {
             <div className="mb-8 border-b border-slate-800 pb-4">
                 <h1 className={`text-2xl font-mono text-${theme}-400 font-bold flex items-center gap-3`}>
                     <span className="animate-pulse">●</span>
-                    {isKol ? 'BUSINESS_OPPORTUNITIES (探索品牌方)' : 'CREATOR_MATRIX (探索内容红人)'}
+                    {isKol ? '探索品牌方' : '探索内容红人'}
                 </h1>
                 <p className="text-slate-500 text-xs font-mono mt-2">
                     {isKol ? '基于行业图谱匹配潜在的商业合作伙伴。' : '基于标签、报价与粉丝画像精准锁定优质创作者。'}
@@ -182,7 +182,7 @@ export default function MatchMatrix() {
                 {/* 🚀 第一层：级联标签筛选区 (双端通用) */}
                 <div className="flex flex-col gap-4 mb-6 border-b border-slate-800/50 pb-6 w-full">
                     <div className="flex items-start">
-                        <span className="text-slate-500 text-xs font-mono w-24 shrink-0 pt-2">$&gt; CATEGORY</span>
+                        <span className="text-slate-500 text-xs font-mono w-24 shrink-0 pt-2">领域标签</span>
 
                         <div className="flex-1 flex flex-wrap gap-2 items-center">
                             <button
@@ -243,11 +243,11 @@ export default function MatchMatrix() {
                 <div className="flex flex-wrap gap-4 items-end">
                     {isKol ? (
                         <div className="w-48">
-                            <label className="block text-slate-500 text-[10px] font-mono mb-1">$&gt; VERIFICATION_STATUS</label>
+                            <label className="block text-slate-500 text-[10px] font-mono mb-1">验证状态</label>
                             <select value={brandVerified} onChange={e => setBrandVerified(e.target.value)} className="w-full bg-slate-950 border border-slate-700 focus:border-cyan-500 rounded px-3 py-2 text-xs font-mono outline-none appearance-none cursor-pointer">
-                                <option value="">ALL (不限)</option>
-                                <option value="1">VERIFIED (已认证品牌)</option>
-                                <option value="0">UNVERIFIED (未认证实体)</option>
+                                <option value="">不限</option>
+                                <option value="1">已认证品牌</option>
+                                <option value="0">未认证品牌</option>
                             </select>
                         </div>
                     ) : (
@@ -269,7 +269,7 @@ export default function MatchMatrix() {
                         disabled={searching}
                         className={`px-8 py-2 bg-${theme}-950/30 border border-${theme}-600 text-${theme}-400 text-xs font-bold font-mono rounded hover:bg-${theme}-900/50 hover:shadow-[0_0_15px_currentColor] transition-all cursor-pointer h-[34px]`}
                     >
-                        {searching ? 'SCANNING...' : '[ EXECUTE_QUERY ]'}
+                        {searching ? 'SCANNING...' : ' 查询 '}
                     </button>
                 </div>
             </div>
@@ -281,7 +281,7 @@ export default function MatchMatrix() {
                 </div>
             ) : list.length === 0 ? (
                 <div className="py-20 text-center border border-dashed border-slate-800 rounded-lg bg-slate-900/20">
-                    <p className="text-slate-500 font-mono text-sm">NO_ENTITIES_FOUND_IN_THIS_SECTOR</p>
+                    <p className="text-slate-500 font-mono text-sm">暂无符合条件内容</p>
                 </div>
             ) : (
                 <div className="flex flex-col gap-4">
@@ -350,7 +350,7 @@ export default function MatchMatrix() {
                                     <div className="flex flex-wrap items-center gap-1.5 flex-1 min-w-0">
                                         {parsedTags.slice(0, 4).map((tag: string, i: number) => (
                                             <span key={i} className={`text-[10px] border px-2 py-1 rounded whitespace-nowrap ${isKol ? 'text-cyan-400 border-cyan-900 bg-cyan-950/30' : 'text-purple-400 border-purple-900 bg-purple-950/30'}`}>
-                                    #{tag}
+                                    {tag}
                                 </span>
                                         ))}
 
@@ -367,7 +367,7 @@ export default function MatchMatrix() {
                                         onClick={() => handleStartChat(item)}
                                         className={`shrink-0 px-6 py-2.5 border text-xs font-bold font-mono rounded transition-all cursor-pointer flex items-center gap-2 ${isKol ? 'bg-cyan-950/30 border-cyan-800 text-cyan-400 hover:bg-cyan-900/50 hover:shadow-[0_0_15px_rgba(34,211,238,0.3)]' : 'bg-purple-950/30 border-purple-800 text-purple-400 hover:bg-purple-900/50 hover:shadow-[0_0_15px_rgba(168,85,247,0.3)]'}`}
                                     >
-                                        <span>[+] INITIATE_COMMS</span>
+                                        <span>[+] 发起沟通</span>
                                     </button>
                                 </div>
 

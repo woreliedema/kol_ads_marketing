@@ -257,12 +257,12 @@ export default function IMTerminal() {
                 <div className="p-4 border-b border-slate-800 bg-slate-900/80">
                     <h2 className="font-mono text-cyan-400 font-bold flex items-center gap-2">
                         <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-400 animate-pulse shadow-[0_0_8px_#4ade80]' : 'bg-red-500'}`}></span>
-                        SECURE_CHANNELS
+                        消息
                     </h2>
                 </div>
                 <div className="flex-1 overflow-y-auto custom-scrollbar">
                     {sessions.length === 0 ? (
-                        <div className="p-6 text-center text-slate-600 font-mono text-xs">NO_ACTIVE_CHANNELS</div>
+                        <div className="p-6 text-center text-slate-600 font-mono text-xs">没有消息</div>
                     ) : (
                         sessions.map(session => (
                             <div
@@ -294,7 +294,7 @@ export default function IMTerminal() {
                     <>
                         {/* Header */}
                         <div className="p-4 border-b border-slate-800 bg-slate-900/80 flex items-center gap-3 shadow-md z-10">
-                            <span className="text-cyan-400 font-mono">$&gt; ENCRYPTED_LINK_TO:</span>
+                            {/*<span className="text-cyan-400 font-mono">$&gt; ENCRYPTED_LINK_TO:</span>*/}
                             <span className="font-bold text-slate-200">{activeSession.target_user_name}</span>
                         </div>
 
@@ -364,7 +364,8 @@ export default function IMTerminal() {
                                     type="text"
                                     value={inputText}
                                     onChange={e => setInputText(e.target.value)}
-                                    placeholder="Type message here..."
+                                    // placeholder="Type message here..."
+                                    placeholder="在此处输入消息..."
                                     className="flex-1 bg-slate-950 border border-slate-700 focus:border-cyan-500 rounded px-4 py-3 text-slate-200 font-mono text-sm outline-none transition-colors"
                                 />
                                 <button
@@ -372,7 +373,7 @@ export default function IMTerminal() {
                                     disabled={!inputText.trim()}
                                     className="px-8 py-3 bg-cyan-950/40 border border-cyan-600 text-cyan-400 font-bold font-mono rounded hover:bg-cyan-900/60 hover:shadow-[0_0_15px_rgba(34,211,238,0.4)] transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    [ TRANSMIT ]
+                                    发送
                                 </button>
                             </form>
                         </div>
@@ -380,8 +381,8 @@ export default function IMTerminal() {
                 ) : (
                     <div className="flex-1 flex flex-col items-center justify-center text-slate-600 font-mono">
                         <div className="text-4xl mb-4 opacity-50">⎔</div>
-                        <div>AWAITING_CONNECTION_ESTABLISHMENT</div>
-                        <div className="text-[10px] mt-2">Select a channel from the radar to decrypt stream.</div>
+                        <div>暂无消息</div>
+                        <div className="text-[10px] mt-2">从匹配大厅选择建联对象</div>
                     </div>
                 )}
             </div>

@@ -2,6 +2,9 @@ package api
 
 import (
 	"context"
+	"fmt"
+	"github.com/cloudwego/hertz/pkg/protocol/consts"
+	"os"
 
 	"kol_ads_marketing/user_center/app/api/handlers"
 	"kol_ads_marketing/user_center/app/api/middleware"
@@ -27,7 +30,25 @@ func RegisterRoutes(h *server.Hertz) {
 
 	// 开启静态文件代理 (模拟 CDN)
 	// 当访问 /uploads/* 时，映射到本地的 ./uploads 目录
-	h.Static("/uploads", "./")
+	//h.Static("/uploads", "./")
+	h.GET("/uploads/*path", func(c context.Context, ctx *app.RequestContext) {
+		// 1. 获取通配符匹配到的路径，例如 "/avatars/abc.jpg"
+		path := ctx.Param("path")
+
+		// 2. 从环境变量获取 MinIO 的公网访问地址
+		// 本地开发环境通常为 http://localhost:19000
+		minioPublicAddr := os.Getenv("MINIO_PUBLIC_URL")
+		if minioPublicAddr == "" {
+			minioPublicAddr = "http://localhost:19000"
+		}
+
+		// 3. 构造重定向目标 URL (Bucket 名为 uploads)
+		// 拼接结果：http://localhost:19000/uploads/avatars/abc.jpg
+		targetURL := fmt.Sprintf("%s/uploads/%s", minioPublicAddr, path)
+
+		// 4. 执行 302 重定向，告诉浏览器去 MinIO 拿数据
+		ctx.Redirect(consts.StatusFound, []byte(targetURL))
+	})
 
 	// 1. 面向前端/用户的公网路由组 (API V1)
 	v1 := h.Group("/api/v1")

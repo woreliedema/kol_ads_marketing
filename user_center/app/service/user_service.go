@@ -5,9 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"kol_ads_marketing/user_center/app/core"
 	"kol_ads_marketing/user_center/app/utils"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -195,26 +194,48 @@ func DeleteBrandLicenseService(ctx context.Context, userID uint64, password stri
 	}
 
 	// 3. 核心动作：物理删除本地文件
-	if profile.LicenseURL != "" {
-		// 我们之前存的 URL 是 "/uploads/licenses/xxxx.jpg"
-		// 为了找到本地物理路径，需要去掉开头的 "/"，并在前面加上 "./"
-		relativePath := strings.TrimPrefix(profile.LicenseURL, "/")
-		physicalPath := filepath.Join(".", relativePath)
+	if profile.LicenseURL == "" {
+		return &response.APIError{HTTPCode: 400, BizCode: 400000, Message: "当前暂无营业执照，无需销毁"}
+	}
+	// 🚀 3. 核心动作：从 MinIO 物理删除文件
+	// 目前 profile.LicenseURL 是类似 "/uploads/licenses/uuid.jpg"
+	// MinIO 的 objectName 只需要 "licenses/uuid.jpg"
+	prefixToRemove := "/" + core.BucketName + "/"
+	objectName := strings.TrimPrefix(profile.LicenseURL, prefixToRemove)
 
-		// 调用 os.Remove 物理删除硬盘上的文件
-		if err := os.Remove(physicalPath); err != nil {
-			// 如果错误是“文件本来就不存在”，可以安全忽略；否则打印日志
-			if !os.IsNotExist(err) {
-				hlog.CtxErrorf(ctx, "物理删除营业执照文件失败 [%s]: %v", physicalPath, err)
-				// 此时可以选择 return 报错阻断流程，也可以继续执行把数据库清空。这里选择容错继续。
-			}
+	if objectName != "" {
+		// 调用你之前在 core/minio.go 里写的物理销毁方法
+		if err := core.RemoveObject(ctx, objectName); err != nil {
+			// 容错处理：如果文件在 MinIO 意外丢失，我们记录错误但继续清理数据库
+			hlog.CtxErrorf(ctx, "从 MinIO 物理删除资质图片 [%s] 失败: %v", objectName, err)
 		} else {
-			hlog.CtxInfof(ctx, "成功物理粉碎营业执照文件: %s", physicalPath)
+			hlog.CtxInfof(ctx, "成功从 MinIO 物理粉碎营业执照文件: %s", objectName)
 		}
 	}
 
+	//if profile.LicenseURL != "" {
+	//	// 我们之前存的 URL 是 "/uploads/licenses/xxxx.jpg"
+	//	// 为了找到本地物理路径，需要去掉开头的 "/"，并在前面加上 "./"
+	//	relativePath := strings.TrimPrefix(profile.LicenseURL, "/")
+	//	physicalPath := filepath.Join(".", relativePath)
+	//
+	//	// 调用 os.Remove 物理删除硬盘上的文件
+	//	if err := os.Remove(physicalPath); err != nil {
+	//		// 如果错误是“文件本来就不存在”，可以安全忽略；否则打印日志
+	//		if !os.IsNotExist(err) {
+	//			hlog.CtxErrorf(ctx, "物理删除营业执照文件失败 [%s]: %v", physicalPath, err)
+	//			// 此时可以选择 return 报错阻断流程，也可以继续执行把数据库清空。这里选择容错继续。
+	//		}
+	//	} else {
+	//		hlog.CtxInfof(ctx, "成功物理粉碎营业执照文件: %s", physicalPath)
+	//	}
+	//}
+
 	// 4. 将 license_url 更新为空字符串
-	if err := db.DB.Model(&models.BrandProfile{}).Where("user_id = ?", userID).Update("license_url", "").Error; err != nil {
+	if err := db.DB.Model(&models.BrandProfile{}).Where("user_id = ?", userID).Updates(map[string]interface{}{
+		"license_url": "",
+		"is_verified": false, // 失去资质，立即打回未认证状态
+	}).Error; err != nil {
 		hlog.CtxErrorf(ctx, "销毁品牌方营业执照数据库记录失败: %v", err)
 		return response.ErrDatabaseError
 	}
@@ -236,13 +257,13 @@ func UpdateUserTagsService(ctx context.Context, userID uint64, role models.RoleT
 
 	// 3. 根据角色定向落库
 	if role == models.RoleKOL {
-		return db.DB.Model(&models.KOLProfile{}).
+		return db.DB.WithContext(ctx).Model(&models.KOLProfile{}).
 			Where("user_id = ?", userID).
 			Update("tags", string(tagsJSON)).Error
 
 	} else if role == models.RoleBrand {
 		// 品牌方也直接更新 tags 字段，写入 JSON 数据！
-		return db.DB.Model(&models.BrandProfile{}).
+		return db.DB.WithContext(ctx).Model(&models.BrandProfile{}).
 			Where("user_id = ?", userID).
 			Update("tags", string(tagsJSON)).Error
 	}

@@ -94,6 +94,8 @@ func main() {
 	}
 	hlog.Infof("✅ Redis 底层连接池初始化成功！[Addr: %s:%d]", redisConfig.Host, redisConfig.Port)
 
+	core.InitMinio()
+
 	// 2. 微服务引擎构建
 	serverPort := getEnv("USER_CENTER_PORT", "8081")
 	h := server.Default(

@@ -16,9 +16,22 @@ services:
       - NACOS_PORT=8848
       # 数据库连接信息 (根据您的 settings 修改)
       - MYSQL_HOST=mysql
+      - MYSQL_URL_PYTHON=mysql+pymysql://root:${MYSQL_PASSWORD}@mysql:3306/KOL_platform?charset=utf8mb4
+      # minio
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+      - MINIO_SECURE=False
+      - INTERNAL_SECRET_KEY=${INTERNAL_SECRET_KEY}
       - CLICKHOUSE_HOST=clickhouse
+      - CLICKHOUSE_PORT=9000
+      - CLICKHOUSE_USER=${CLICKHOUSE_USER}
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD}
       - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
       - DATA_COLLECTION_IP=data_collection_service
+      - COZE_API_KEY=${COZE_API_KEY}
+      - COZE_ASR_WORKFLOW_ID=${COZE_ASR_WORKFLOW_ID}
+      - COZE_AI_WORKFLOW_ID=${COZE_AI_WORKFLOW_ID}
     depends_on:
       - redis
       - mysql
@@ -26,10 +39,9 @@ services:
       - nacos
       - kafka
     volumes:
-      # 挂载代码目录，方便调试（可选）
-      - ../data_collection_service:/app
-      # 挂载日志目录
-      - ./logs/data_collection:/app/logs
+      # 挂载到容器内的子目录，保持路径一致性
+      - ../data_collection_service:/app/data_collection_service
+      - ./logs/data_collection:/app/data_collection_service/logs
   user_center:
     build:
       context: ../user_center
@@ -45,15 +57,25 @@ services:
       - NACOS_HOST=nacos
       # 2. 匹配你代码里读取的数据库变量名
       - MYSQL_UC_DBNAME=kol_user_center
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - INTERNAL_SECRET_KEY=${INTERNAL_SECRET_KEY}
       # 3. 让 Go 服务向 Nacos 注册自己的容器名，而不是 127.0.0.1
       - USER_CENTER_IP=kol_user_center
       - USER_CENTER_NAME=user-center-service
+      - DATA_COLLECTION_NAME=data-collection-service
+      - DATA_COLLECTION_IP=data_collection_service
+      - DATA_COLLECTION_PORT=8000
       # 4. 强制复用 .env 里的密码配置 (可以通过 docker-compose 的变量插值传递)
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL}
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
+      - MINIO_SECURE=False
     depends_on:
       - mysql
       - redis
       - nacos
+      - minio
   match_system:
     build:
       context: ../match_system_service
@@ -70,8 +92,15 @@ services:
       - REDIS_PORT=6379
       - MYSQL_HOST=mysql
       - MYSQL_PORT=3306
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_MS_DBNAME=kol_match
+      - USER_CENTER_IP=kol_user_center
+      - USER_CENTER_PORT=8081
       - ES_HOST=elasticsearch
       - ES_PORT=9200
+      - ES_URL=http://elasticsearch:9200
+      - INTERNAL_SECRET_KEY=${INTERNAL_SECRET_KEY}
       - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
       # 注册给 Nacos 的真实容器 IP (必须对应我们上面修复的 Bug)
       - MATCH_SYSTEM_IP=kol_match_system
@@ -95,12 +124,18 @@ services:
     environment:
       # 基础组件连接
       - CLICKHOUSE_HOST=clickhouse
+      - CLICKHOUSE_PORT=9000
+      - CLICKHOUSE_USER=${CLICKHOUSE_USER}
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD}
       - REDIS_HOST=redis
       - NACOS_HOST=nacos
       - NACOS_PORT=8848
+      - INTERNAL_SECRET_KEY=${INTERNAL_SECRET_KEY}
       # 服务注册配置
       - MONITOR_SERVICE_PORT=8083
       - MONITOR_SERVICE_NAME=data-monitor-service
+      - USER_CENTER_IP=kol_user_center
+      - USER_CENTER_PORT=8081
       # 🔴 核心配置：确保服务注册到 Nacos 时使用的是容器名
       - MONITOR_SERVICE_IP=kol_data_monitor
       # 认证配置

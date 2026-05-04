@@ -328,7 +328,7 @@ func GetDashboardAdsAnalysisService(ctx context.Context, role int, userID uint64
 	videoSql := `
 		SELECT bvid, title, brand_name, product_name, selling_points, toString(toDateTime(pubdate, 'Asia/Shanghai')) as pubdate_fmt
 		FROM dwd.bilibili_video_ads_analysis
-		WHERE mid = ? AND pubdate >= now() - INTERVAL 30 DAY
+		WHERE mid = ? AND (brand_name<>'无商单' or product_name<>'无商单') AND pubdate >= now() - INTERVAL 30 DAY
 		ORDER BY pubdate DESC
 		LIMIT 20
 	`
@@ -345,7 +345,7 @@ func GetDashboardAdsAnalysisService(ctx context.Context, role int, userID uint64
 	brandSql := `
 		SELECT brand_name, count(1) as count
 		FROM dwd.bilibili_video_ads_analysis
-		WHERE mid = ? AND pubdate >= now() - INTERVAL 30 DAY
+		WHERE mid = ? AND (brand_name<>'无商单' or product_name<>'无商单') AND pubdate >= now() - INTERVAL 30 DAY
 		GROUP BY brand_name
 		ORDER BY count DESC
 		LIMIT 10
@@ -359,7 +359,7 @@ func GetDashboardAdsAnalysisService(ctx context.Context, role int, userID uint64
 		SELECT point, count(1) as count
 		FROM dwd.bilibili_video_ads_analysis
 		ARRAY JOIN selling_points AS point
-		WHERE mid = ? AND pubdate >= now() - INTERVAL 30 DAY
+		WHERE mid = ? AND (brand_name<>'无商单' or product_name<>'无商单') AND pubdate >= now() - INTERVAL 30 DAY
 		GROUP BY point
 		ORDER BY count DESC
 		LIMIT 15
