@@ -16,10 +16,10 @@ type BrandFilterResp struct {
 
 // BrandSyncData 品牌方核心数据模型 (与 ES 存储及 match_brand_wide_index 映射对齐)
 type BrandSyncData struct {
-	BrandUserID int64  `json:"brand_user_id"` // 对应 sys_users.id
-	Username    string `json:"username"`
-	CompanyName string `json:"company_name"`
-	AvatarURL   string `json:"avatar_url"` // 对应 brand_profiles.avatar_url
-	Tags        string `json:"tags"`
-	IsVerified  int8   `json:"is_verified"` // 1-是 0-否
+	BrandUserID    int64  `json:"brand_user_id"` // 对应 sys_users.id
+	Username       string `json:"username"`
+	CompanyName    string `json:"company_name"`
+	BrandAvatarURL string `json:"brand_avatar_url"` // 对应 brand_profiles.avatar_url
+	Tags           string `json:"tags"`
+	IsVerified     int8   `json:"is_verified"` // 1-是 0-否
 }

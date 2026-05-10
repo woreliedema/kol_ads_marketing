@@ -14,6 +14,9 @@ services:
       - REDIS_PORT=6379
       - NACOS_HOST=nacos  # 确保代码能读到这个 host
       - NACOS_PORT=8848
+      - NACOS_NAMESPACE=${NACOS_NAMESPACE}
+      - NACOS_GROUP=${NACOS_GROUP}
+      - NACOS_CLUSTER=${NACOS_CLUSTER}
       # 数据库连接信息 (根据您的 settings 修改)
       - MYSQL_HOST=mysql
       - MYSQL_URL_PYTHON=mysql+pymysql://root:${MYSQL_PASSWORD}@mysql:3306/KOL_platform?charset=utf8mb4
@@ -21,6 +24,7 @@ services:
       - MINIO_ENDPOINT=minio:9000
       - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
       - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+      - MINIO_BUCKET_NAME=kol-videos
       - MINIO_SECURE=False
       - INTERNAL_SECRET_KEY=${INTERNAL_SECRET_KEY}
       - CLICKHOUSE_HOST=clickhouse
@@ -29,6 +33,8 @@ services:
       - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD}
       - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
       - DATA_COLLECTION_IP=data_collection_service
+      - DATA_COLLECTION_NAME=data-collection-service
+      - DATA_COLLECTION_PORT=8000
       - COZE_API_KEY=${COZE_API_KEY}
       - COZE_ASR_WORKFLOW_ID=${COZE_ASR_WORKFLOW_ID}
       - COZE_AI_WORKFLOW_ID=${COZE_AI_WORKFLOW_ID}
@@ -71,6 +77,17 @@ services:
       - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
       - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
       - MINIO_SECURE=False
+      # Nacos 业务分组与集群
+      - NACOS_PORT=8848
+      - NACOS_NAMESPACE=${NACOS_NAMESPACE}
+      - NACOS_GROUP=${NACOS_GROUP}
+      - NACOS_CLUSTER=${NACOS_CLUSTER}
+      # 中间件端口与账号显式声明
+      - MYSQL_PORT=3306
+      - MYSQL_USER=root
+      - REDIS_PORT=6379
+      # 自身监听端口
+      - USER_CENTER_PORT=8081
     depends_on:
       - mysql
       - redis
@@ -86,27 +103,39 @@ services:
       - "8082:8082"
     environment:
       # 注入所有依赖的中间件地址（对接你的 getEnv 获取逻辑）
+      # nacos
       - NACOS_HOST=nacos
       - NACOS_PORT=8848
+      - NACOS_NAMESPACE=${NACOS_NAMESPACE}
+      - NACOS_GROUP=${NACOS_GROUP}
+      - NACOS_CLUSTER=${NACOS_CLUSTER}
+      - MATCH_SYSTEM_IP=kol_match_system
+      - MATCH_SYSTEM_PORT=8082
+      - MATCH_SYSTEM_NAME=match-system-service
+      # redis
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      # mysql
       - MYSQL_HOST=mysql
       - MYSQL_PORT=3306
       - MYSQL_USER=root
       - MYSQL_PASSWORD=${MYSQL_PASSWORD}
       - MYSQL_MS_DBNAME=kol_match
+      # RPC通信
       - USER_CENTER_IP=kol_user_center
       - USER_CENTER_PORT=8081
+      - INTERNAL_SECRET_KEY=${INTERNAL_SECRET_KEY}
+      # ES
       - ES_HOST=elasticsearch
       - ES_PORT=9200
       - ES_URL=http://elasticsearch:9200
-      - INTERNAL_SECRET_KEY=${INTERNAL_SECRET_KEY}
+      # kafka
       - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
-      # 注册给 Nacos 的真实容器 IP (必须对应我们上面修复的 Bug)
-      - MATCH_SYSTEM_IP=kol_match_system
-      - MATCH_SYSTEM_PORT=8082
-      - MATCH_SYSTEM_NAME=match-system-service
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - KAFKA_MS_GROUP_ID=${KAFKA_MS_GROUP_ID}
+      - KAFKA_MS_IM_TOPIC=${KAFKA_MS_IM_TOPIC}
+      - KAFKA_MS_IM_PERSIST_GROUP=${KAFKA_MS_IM_PERSIST_GROUP}
+      # 雪花ID
+      - SNOWFLAKE_WORKER_ID=${SNOWFLAKE_WORKER_ID}
     depends_on:
       - nacos
       - mysql
@@ -127,16 +156,21 @@ services:
       - CLICKHOUSE_PORT=9000
       - CLICKHOUSE_USER=${CLICKHOUSE_USER}
       - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD}
+      - CLICKHOUSE_DB_DWS=${CLICKHOUSE_DB_DWS}
       - REDIS_HOST=redis
+      - REDIS_PORT=6379
       - NACOS_HOST=nacos
       - NACOS_PORT=8848
+      - NACOS_NAMESPACE=${NACOS_NAMESPACE}
+      - NACOS_GROUP=${NACOS_GROUP}
+      - NACOS_CLUSTER=${NACOS_CLUSTER}
       - INTERNAL_SECRET_KEY=${INTERNAL_SECRET_KEY}
       # 服务注册配置
       - MONITOR_SERVICE_PORT=8083
       - MONITOR_SERVICE_NAME=data-monitor-service
       - USER_CENTER_IP=kol_user_center
       - USER_CENTER_PORT=8081
-      # 🔴 核心配置：确保服务注册到 Nacos 时使用的是容器名
+      # 核心配置：确保服务注册到 Nacos 时使用的是容器名
       - MONITOR_SERVICE_IP=kol_data_monitor
       # 认证配置
       - MYSQL_PASSWORD=${MYSQL_PASSWORD}

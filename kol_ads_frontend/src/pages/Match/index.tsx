@@ -105,7 +105,7 @@ export default function MatchMatrix() {
         const targetUserName = item.company_name || item.username || 'UNKNOWN_TARGET';
 
         // 头像同理，哪边有值取哪边
-        const targetAvatar = item.avatar_url || item.kol_avatar_url || '/default-avatar.png';
+        const targetAvatar = item.brand_avatar_url || item.kol_avatar_url || '/default-avatar.png';
 
         // 组装标准跨端通讯档案
         const targetUser = {
@@ -303,7 +303,7 @@ export default function MatchMatrix() {
                                 <div className="flex items-center gap-4 w-full md:w-[30%] shrink-0">
                                     <div className="relative shrink-0">
                                         <img
-                                            src={isKol ? (item.avatar_url || '/default-avatar.png') : (item.kol_avatar_url || '/default-avatar.png')}
+                                            src={isKol ? (item.brand_avatar_url || '/default-avatar.png') : (item.kol_avatar_url || '/default-avatar.png')}
                                             alt="avatar"
                                             className={`w-14 h-14 rounded-full border-2 object-cover bg-slate-800 ${isKol ? 'border-cyan-800' : 'border-purple-800'}`}
                                         />

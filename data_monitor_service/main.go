@@ -36,7 +36,7 @@ func main() {
 	// 2.5 初始化内部通信RPC服务
 	rpc.Init()
 
-	// 3. 构建 Hertz 微服务引擎 (非常关键的一步，之前的代码漏掉了)
+	// 3. 构建 Hertz 微服务引擎
 	serverPort := utils.GetEnv("MONITOR_SERVICE_PORT", "8083") // 从环境变量动态读取端口
 	h := server.Default(server.WithHostPorts("0.0.0.0:" + serverPort))
 
