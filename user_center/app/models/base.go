@@ -46,7 +46,7 @@ type KOLProfile struct {
 	UserID      uint64  `gorm:"uniqueIndex;not null" json:"user_id"`
 	RealName    string  `gorm:"type:varchar(64)" json:"real_name"`
 	AvatarURL   string  `gorm:"type:varchar(255);comment:头衔url" json:"avatar_url"`
-	Tags        string  `gorm:"type:json;comment:领域标签(如[数码,美妆])，MySQL8.0原生支持JSON" json:"tags"`
+	Tags        string  `gorm:"type:json;default:'[]';comment:领域标签(如[数码,美妆])，MySQL8.0原生支持JSON" json:"tags"`
 	BaseQuote   float64 `gorm:"type:decimal(10,2);comment:红人自行设置的基础底价" json:"base_quote"`
 	CreditScore int     `gorm:"type:int;default:100;comment:平台信用分(影响排序推荐)" json:"credit_score"`
 
@@ -61,7 +61,7 @@ type BrandProfile struct {
 	CompanyName string `gorm:"type:varchar(128);not null;comment:企业主体名称" json:"company_name"`
 	AvatarURL   string `gorm:"type:varchar(255);comment:头衔url" json:"avatar_url"`
 	//Industry    string `gorm:"type:varchar(64);comment:所属行业" json:"industry"`
-	Tags       string `gorm:"type:json;comment:领域标签统一使用JSON格式" json:"tags"`
+	Tags       string `gorm:"type:json;default:'[]';comment:领域标签统一使用JSON格式" json:"tags"`
 	LicenseURL string `gorm:"type:varchar(255);comment:营业执照图片地址" json:"license_url"`
 	IsVerified bool   `gorm:"type:tinyint(1);default:0;comment:是否通过企业资质认证" json:"is_verified"`
 

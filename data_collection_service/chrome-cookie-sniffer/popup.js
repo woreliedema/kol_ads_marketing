@@ -64,64 +64,27 @@ document.addEventListener('DOMContentLoaded', function() {
         webhookStatus.textContent = '正在发送测试请求...';
         webhookStatus.style.color = '#17a2b8';
         
-        // 获取现有数据或创建测试数据
-        chrome.storage.local.get(['cookieData_douyin'], async function(result) {
-            let testData;
-            
-            if (result.cookieData_douyin) {
-                // 使用现有数据
-                testData = {
-                    service: 'douyin',
-                    cookie: result.cookieData_douyin.cookie,
-                    timestamp: new Date().toISOString(),
-                    test: true,
-                    message: '这是一个测试回调，使用了真实的Cookie数据'
-                };
-            } else {
-                // 使用模拟数据
-                testData = {
-                    service: 'douyin',
-                    cookie: 'test_cookie=test_value; another_cookie=another_value',
-                    timestamp: new Date().toISOString(),
-                    test: true,
-                    message: '这是一个测试回调，使用了模拟Cookie数据'
-                };
-            }
-            
-            try {
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(testData)
-                });
-                
-                if (response.ok) {
-                    webhookStatus.textContent = `✅ 测试成功 (${response.status})`;
-                    webhookStatus.style.color = '#28a745';
-                } else {
-                    webhookStatus.textContent = `❌ 服务器错误 (${response.status})`;
-                    webhookStatus.style.color = '#dc3545';
-                }
-            } catch (error) {
-                console.error('Webhook测试失败:', error);
-                if (error.name === 'TypeError' && error.message.includes('fetch')) {
-                    webhookStatus.textContent = '❌ 网络错误或跨域限制';
-                } else {
-                    webhookStatus.textContent = `❌ 请求失败: ${error.message}`;
-                }
+        chrome.runtime.sendMessage({ action: 'testWebhook' }, function(response) {
+            if (chrome.runtime.lastError) {
+                webhookStatus.textContent = `❌ 拓展内部通信错误`;
                 webhookStatus.style.color = '#dc3545';
-            } finally {
-                testWebhookBtn.disabled = false;
-                testWebhookBtn.textContent = '🔧 测试';
-                updateTestButtonState();
-                
-                // 5秒后清除状态信息
-                setTimeout(() => {
-                    webhookStatus.textContent = '';
-                }, 5000);
+            } else if (response && response.success) {
+                webhookStatus.textContent = `✅ 测试成功`;
+                webhookStatus.style.color = '#28a745';
+            } else {
+                webhookStatus.textContent = `❌ 测试失败: ${response.error}`;
+                webhookStatus.style.color = '#dc3545';
             }
+
+            // 恢复按钮状态
+            testWebhookBtn.disabled = false;
+            testWebhookBtn.textContent = '🔧 测试';
+            updateTestButtonState();
+
+            // 5秒后清除状态信息
+            setTimeout(() => {
+                webhookStatus.textContent = '';
+            }, 5000);
         });
     }
     

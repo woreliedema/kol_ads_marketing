@@ -97,7 +97,7 @@ func RegisterService(ctx context.Context, username, password, phone, email strin
 	var userID uint64
 
 	// 3. 开启数据库事务写入
-	err = db.DB.Transaction(func(tx *gorm.DB) error {
+	err = db.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var phonePtr *string
 		if phone != "" {
 			phonePtr = &phone
@@ -129,7 +129,7 @@ func RegisterService(ctx context.Context, username, password, phone, email strin
 				return err
 			}
 		} else if role == models.RoleBrand {
-			if err := tx.Create(&models.BrandProfile{UserID: userID, CompanyName: "未命名企业"}).Error; err != nil {
+			if err := tx.Create(&models.BrandProfile{UserID: userID, CompanyName: "未命名企业", Tags: "[]"}).Error; err != nil {
 				return err
 			}
 		}
