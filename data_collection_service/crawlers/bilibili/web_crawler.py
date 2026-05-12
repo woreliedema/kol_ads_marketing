@@ -160,6 +160,7 @@ class BilibiliWebCrawler:
     async def fetch_user_profile(self, uid: str) -> dict:
         # 获取请求头信息
         kwargs = await self.get_bilibili_headers()
+        kwargs["headers"]["referer"] = f"https://space.bilibili.com/{uid}"
         # 创建基础爬虫对象
         base_crawler = BaseCrawler(proxies=kwargs["proxies"], crawler_headers=kwargs["headers"])
         async with base_crawler as crawler:

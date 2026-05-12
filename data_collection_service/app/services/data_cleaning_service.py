@@ -139,11 +139,18 @@ class DataCleaningService:
         :param raw_data: fetch_user_profile 接口返回的原始 JSON
         :param batch_id:
         """
-        if not raw_data or raw_data.get('code') != 0:
+        if not raw_data:
+            logger.error(f"[Clean] Batch:{batch_id} raw_data 为空 (网络层异常)")
+            return []
+
+        if raw_data.get('code') != 0:
+            logger.error(
+                f"[Clean BiliSec] 触发B站风控/业务报错! Code: {raw_data.get('code')}, Msg: {raw_data.get('message')}")
             return []
 
         data = raw_data.get('data', {})
         if not data:
+            logger.error(f"[Clean] JSON 中 data 字段为空")
             return []
 
         # 1. 提取嵌套对象，使用 get 防止 NoneType 报错
